@@ -15,8 +15,34 @@ from backend.agents import technical_indicators as ti
 from backend.agents.io_async import fetch_equity_ohlcv_async, fetch_index_ohlcv_async
 from backend.agents.models import HotSectorItem, HotSectorsReport
 from backend.data import finance_data
+from backend.screener.sector_etf_flow import etf_flow_extras_for_dept
 
 logger = logging.getLogger(__name__)
+
+# 로드맵상 어닝 리비전은 외부 피드 연동 전까지 안내 문구만 제공
+EARNINGS_REVISION_PLACEHOLDER = "컨센서스·어닝 리비전 데이터 미연동(별도 피드 연동 예정)"
+
+
+async def _assemble_hot_row(
+    dept: str,
+    rep_code: str,
+    rel: float | None,
+    strength: float,
+    summary: str,
+) -> HotSectorItem:
+    """모멘텀 요약 + ETF 프록시 자금 흐름 + 리비전 안내를 한 행으로 만듭니다."""
+    ex = await etf_flow_extras_for_dept(dept)
+    return HotSectorItem(
+        sector_name=dept,
+        representative_ticker=rep_code,
+        relative_outperformance_60d=float(rel) if rel is not None else None,
+        strength_score=strength,
+        summary=summary,
+        etf_proxy_code=ex.get("etf_proxy_code"),
+        etf_proxy_label=ex.get("etf_proxy_label"),
+        etf_flow_summary=ex.get("etf_flow_summary"),
+        earnings_revision_note=EARNINGS_REVISION_PLACEHOLDER,
+    )
 
 
 async def build_hot_sectors(
@@ -89,7 +115,6 @@ async def build_hot_sectors(
     scored.sort(key=lambda x: x[2], reverse=True)
     scored = scored[: int(top_n)]
 
-    items: list[HotSectorItem] = []
     if not scored:
         return HotSectorsReport(items=[])
 
@@ -97,8 +122,8 @@ async def build_hot_sectors(
     worst = scored[-1][2] if scored[-1][2] is not None else best
     span = abs(best - worst)
 
+    tasks: list[asyncio.Task[HotSectorItem]] = []
     for dept, c, rel in scored:
-        # 표본이 하나면 상대 스케일이 없으므로 중간~높은 점수로 표시
         if rel is None:
             strength = 0.0
         elif span < 1e-12:
@@ -111,14 +136,8 @@ async def build_hot_sectors(
             if rel_pct is not None
             else "모멘텀 산출 불가"
         )
-        items.append(
-            HotSectorItem(
-                sector_name=dept,
-                representative_ticker=c,
-                relative_outperformance_60d=float(rel) if rel is not None else None,
-                strength_score=strength,
-                summary=summ,
-            )
-        )
+        tasks.append(asyncio.create_task(_assemble_hot_row(dept, c, rel, strength, summ)))
+
+    items = list(await asyncio.gather(*tasks))
 
     return HotSectorsReport(items=items)

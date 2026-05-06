@@ -70,13 +70,20 @@ class CEOOrchestrator:
         """
         self.agents: list[object] = agents or default_agents()
 
-    async def run(self, ticker: str, *, debate_round: bool = True) -> CEOReport:
+    async def run(
+        self,
+        ticker: str,
+        *,
+        debate_round: bool = True,
+        use_stats_weights: bool = False,
+    ) -> CEOReport:
         """
         모든 에이전트를 병렬 실행하고 ``CEOReport`` 를 생성합니다.
 
         Args:
             ticker: 종목코드.
             debate_round: 재무 vs 리스크 반론 요약 생성 여부.
+            use_stats_weights: 성적표 DB 기반 에이전트 신뢰도 가중 적용 여부.
 
         Returns:
             집계 결과 및 개별 보고서.
@@ -84,19 +91,37 @@ class CEOOrchestrator:
         validator = FinancialAgent()
         code = validator.validate_ticker(ticker)
 
+        mult: dict[str, float] = {}
+        stats_applied = False
+        if use_stats_weights:
+            try:
+                from backend.storage.agent_weights import get_agent_confidence_multipliers
+
+                mult = await asyncio.to_thread(get_agent_confidence_multipliers)
+                stats_applied = len(mult) > 0
+            except Exception as exc:
+                logger.warning("성적표 가중치 조회 실패: %s", exc)
+
         tasks = [_safe_call(agent, code) for agent in self.agents]
         reports: list[AgentResponse] = await asyncio.gather(*tasks)
 
         weights = defaultdict(float)
         for r in reports:
-            weights[_bucket(r.opinion)] += max(0.05, float(r.confidence))
+            m = float(mult.get(r.agent_name, 1.0))
+            weights[_bucket(r.opinion)] += max(0.05, float(r.confidence)) * m
 
         total = sum(weights.values()) or 1.0
         buy_pct = weights["buy"] / total * 100.0
         neutral_pct = weights["neutral"] / total * 100.0
         sell_pct = weights["sell"] / total * 100.0
 
-        ranked = sorted(reports, key=lambda x: abs(float(x.score)) * float(x.confidence), reverse=True)
+        ranked = sorted(
+            reports,
+            key=lambda x: abs(float(x.score))
+            * float(x.confidence)
+            * float(mult.get(x.agent_name, 1.0)),
+            reverse=True,
+        )
         summary_lines: list[str] = []
         for r in ranked[:3]:
             snippet = (r.reasoning or "").replace("\n", " ")
@@ -139,4 +164,6 @@ class CEOOrchestrator:
             summary_lines=summary_lines,
             agent_reports=reports,
             risk_rebuttal=rebuttal,
+            stats_weights_applied=stats_applied,
+            agent_weight_multipliers=dict(mult) if use_stats_weights else {},
         )

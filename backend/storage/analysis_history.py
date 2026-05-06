@@ -275,12 +275,17 @@ class AgentStatAccum:
     total: int = 0
 
 
-def compute_agent_performance(trading_horizon: int = 30) -> dict[str, Any]:
+def compute_agent_performance(
+    trading_horizon: int = 30,
+    *,
+    fill_missing_returns: bool = True,
+) -> dict[str, Any]:
     """
     저장된 분석 중 충분히 경과한 건에 대해 에이전트별 적중률을 계산합니다.
 
     Args:
         trading_horizon: 30 / 60 / 90 등 ``analysis_record`` 의 ``return_*d`` 컬럼과 매칭.
+        fill_missing_returns: ``False``이면 DB 갱신 없이 이미 채워진 수익률만 사용(가중치 조회용).
 
     Returns:
         API 응답용 딕셔너리.
@@ -301,7 +306,7 @@ def compute_agent_performance(trading_horizon: int = 30) -> dict[str, Any]:
     evaluated = 0
 
     for raw in rows:
-        row = _maybe_fill_forward_returns(raw)
+        row = _maybe_fill_forward_returns(raw) if fill_missing_returns else raw
         as_of = datetime.fromisoformat(str(row["analyzed_at"]).replace("Z", "+00:00"))
         if now - as_of.replace(tzinfo=timezone.utc) < timedelta(days=min_age):
             continue

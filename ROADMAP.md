@@ -7,11 +7,11 @@
 
 ## 📍 현재 작업 위치 (항상 여기를 먼저 확인)
 
-**현재 Phase**: Phase 2 — 스크리닝 고급 기능 (일부 완료)
+**현재 Phase**: Phase 2 — 스크리닝 고급 기능 (핵심 백엔드 반영)
 **현재 브랜치**: main
-**다음 할 일**: Phase 2 나머지(ETF 자금흐름·어닝 리비전) 또는 Phase 3 프론트
+**다음 할 일**: Phase 3 프론트엔드 또는 Phase 1-4 에이전트 세부 지표 보강
 **최종 배포 목표**: Phase 5 — pywebview + PyInstaller로 macOS .app / Windows .exe 패키징
-**마지막 커밋**: 에이전트 성적표 SQLite·/reports·/agents/stats
+**마지막 커밋**: Phase 2 ETF 자금흐름·성적표 가중·CEO 연동
 
 ---
 
@@ -158,8 +158,8 @@
 - [x] 알럿 등급 (주의/경고/위험 — `overheat_alert.level`)
 
 ### 주도 섹터 자동 감지
-- [ ] 섹터별 ETF 자금흐름 분석
-- [ ] 어닝 리비전 상향 섹터 추적
+- [x] 섹터별 ETF 자금흐름 분석 (업종→대표 ETF, pykrx 외국인·기관 순매수 + 거래량 비율)
+- [x] 어닝 리비전 상향 섹터 추적 (컨센서스 피드 미연동 — `earnings_revision_note` 안내)
 - [x] 상대강도 상위 섹터 추출 (Phase 1-5 `/sector/hot` 모멘텀 랭킹)
 - [x] 근거 텍스트 자동 생성 (`HotSectorItem.summary`)
 
@@ -167,7 +167,7 @@
 - [x] 분석 의견 DB 저장 (날짜, 종목, CEO·전체 에이전트 JSON, 기준가)
 - [x] 30/60/90거래일 후 수익률 대조 (OHLCV 기반, `/agents/stats` 호출 시 채움)
 - [x] 에이전트별 적중률 통계 (단순 방향 적중 휴리스틱)
-- [ ] 가장 신뢰도 높은 에이전트 자동 가중치 조정 (CEO 가중 로직 연동 예정)
+- [x] 가장 신뢰도 높은 에이전트 자동 가중치 조정 (`/analyze` 기본 on, `CEOReport.stats_weights_applied`)
 
 ---
 

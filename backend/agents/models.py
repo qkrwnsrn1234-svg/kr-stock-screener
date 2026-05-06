@@ -132,6 +132,14 @@ class CEOReport(BaseModel):
     agent_reports: list[AgentResponse] = Field(default_factory=list)
     risk_rebuttal: str = Field(default="", description="반론/경고 요약")
     timestamp: datetime = Field(default_factory=_utc_now, description="생성 시각(UTC)")
+    stats_weights_applied: bool = Field(
+        default=False,
+        description="성적표 기반 에이전트 신뢰도 가중이 집계에 반영되었는지",
+    )
+    agent_weight_multipliers: dict[str, float] = Field(
+        default_factory=dict,
+        description="에이전트명 → 적용된 신뢰도 배수(요청 시에만 채움)",
+    )
 
     @field_validator("ticker")
     @classmethod
@@ -168,6 +176,16 @@ class HotSectorItem(BaseModel):
     )
     strength_score: float = Field(..., ge=0.0, le=100.0, description="상대 강도 점수")
     summary: str = Field(default="", description="요약 문구")
+    etf_proxy_code: str | None = Field(default=None, description="섹터 대표 ETF 종목코드")
+    etf_proxy_label: str | None = Field(default=None, description="대표 ETF 이름")
+    etf_flow_summary: str | None = Field(
+        default=None,
+        description="ETF 순매수·거래량 기반 자금 흐름 요약",
+    )
+    earnings_revision_note: str | None = Field(
+        default=None,
+        description="어닝 리비전·컨센서스 연동 상태 안내",
+    )
 
 
 class HotSectorsReport(BaseModel):

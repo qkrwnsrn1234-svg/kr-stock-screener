@@ -107,13 +107,19 @@ async def analyze_ticker(
         True,
         description="true면 분석 결과를 SQLite 이력(DB)에 저장합니다.",
     ),
+    use_stats_weights: bool = Query(
+        True,
+        description=(
+            "true면 /agents/stats 성과(이미 채워진 선행수익률)로 에이전트 신뢰도 가중을 적용합니다."
+        ),
+    ),
 ) -> CEOReport:
     """
     단일 종목에 대해 전 에이전트 병렬 분석 후 CEO 종합 보고서를 반환합니다.
     """
     try:
         orch = CEOOrchestrator()
-        report = await orch.run(ticker)
+        report = await orch.run(ticker, use_stats_weights=use_stats_weights)
         if persist:
             try:
                 await asyncio.to_thread(save_ceo_report_blocking, report)
@@ -186,6 +192,10 @@ async def screen(
         description="콤마로 구분된 6자리 종목코드 목록 (최대 8개)",
         examples=["005930,000660"],
     ),
+    use_stats_weights: bool = Query(
+        False,
+        description="true면 CEO가 성적표 기반 에이전트 신뢰도 가중을 사용(다종목일 때 부담 증가).",
+    ),
 ) -> list[ScreeningResult]:
     """
     다종목 스크리닝 — 종목별 에이전트 전체 파이프라인·저평가·과열 요약을 반환합니다.
@@ -205,7 +215,7 @@ async def screen(
 
     async def _one(code: str) -> ScreeningResult:
         async with sem:
-            report = await CEOOrchestrator().run(code)
+            report = await CEOOrchestrator().run(code, use_stats_weights=use_stats_weights)
             return await build_screening_result(report)
 
     try:
