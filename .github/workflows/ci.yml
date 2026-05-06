@@ -31,7 +31,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: 패키지 문법 검사 (compileall)
-        run: python -m compileall backend
+        run: python -m compileall backend desktop
 
       - name: SQLite 이관 스크립트 dry-run
         env:

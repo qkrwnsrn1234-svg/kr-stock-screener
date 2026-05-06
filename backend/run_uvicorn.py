@@ -36,14 +36,22 @@ def _parse_bool_strict(raw: str | None, default: bool = False) -> bool:
     return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
-def main() -> None:
-    """선호 포트를 결정한 뒤 uvicorn 서버를 띄웁니다."""
-    load_dotenv()
-    logging.basicConfig(level=logging.INFO)
+def resolve_listen_config(*, load_env: bool = True) -> tuple[str, int, bool]:
+    """
+    ``BIND_HOST``·``PORT``·``SERVER_PORT_AUTOSCAN`` 에 따라 바인드 주소와 포트를 결정합니다.
+
+    ``KR_STOCK_ACTUAL_HTTP_PORT`` 환경 변수를 설정한 뒤 ``(바인드 주소, 포트, 폴백 여부)``
+    튜플을 반환합니다. pywebview 등 별도 스레드에서 uvicorn 을 붙일 때 재사용합니다.
+
+    Args:
+        load_env: True면 시작 시 ``load_dotenv()`` 를 한 번 호출합니다.
+            이미 불렀거나 ``BIND_HOST`` 를 먼저 덮어쓸 때는 ``False`` 로 호출합니다.
+    """
+    if load_env:
+        load_dotenv()
 
     bind_host = _read_bind_host()
     preferred = read_preferred_http_port()
-
     autoscan_default = bind_host.strip() != "0.0.0.0"
     autoscan = server_port_autoscan_enabled(default=autoscan_default)
     autoscan_explicit = os.getenv("SERVER_PORT_AUTOSCAN")
@@ -51,6 +59,8 @@ def main() -> None:
     chosen, used_fallback = pick_listen_tcp_port(
         bind_host, preferred_port=preferred, autoscan=autoscan
     )
+
+    os.environ["KR_STOCK_ACTUAL_HTTP_PORT"] = str(chosen)
 
     if used_fallback:
         logger.warning(
@@ -60,14 +70,24 @@ def main() -> None:
             autoscan_explicit if autoscan_explicit else ("true" if autoscan else "false"),
         )
 
-    os.environ["KR_STOCK_ACTUAL_HTTP_PORT"] = str(chosen)
+    return bind_host, chosen, used_fallback
+
+
+def main() -> None:
+    """선호 포트를 결정한 뒤 uvicorn 서버를 띄웁니다."""
+    logging.basicConfig(level=logging.INFO)
+
+    bind_host, chosen, _used_fallback = resolve_listen_config()
 
     reload_enabled = _parse_bool_strict(os.getenv("SERVER_DEV_RELOAD"))
+    autoscan_default = bind_host.strip() != "0.0.0.0"
+    autoscan = server_port_autoscan_enabled(default=autoscan_default)
+
     logger.info(
         "KR Stock Screener 리스닝: host=%s port=%s (선호 PORT=%s, autoscan=%s)",
         bind_host,
         chosen,
-        preferred,
+        read_preferred_http_port(),
         autoscan,
     )
 

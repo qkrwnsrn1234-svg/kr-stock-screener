@@ -43,6 +43,8 @@ kr-stock-screener/
 │   └── utils/
 ├── frontend/
 │   └── src/
+├── desktop/
+│   └── app.py         # Phase 5 pywebview 데스크톱 래퍼
 └── data/
 
 ## AI 에이전트 구성

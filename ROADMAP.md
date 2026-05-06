@@ -9,9 +9,9 @@
 
 **현재 Phase**: Phase 5 데스크톱·단일 서버 패키징 진행 중
 **현재 브랜치**: feature/phase4-scheduler-docker
-**다음 할 일**: pywebview 데스크톱 래퍼 `desktop/app.py`(Phase 5-2)
+**다음 할 일**: PyInstaller 번들 `desktop/app.spec` 및 빌드 스크립트(Phase 5-3)
 **최종 배포 목표**: Phase 5 — pywebview + PyInstaller로 macOS .app / Windows .exe 패키징
-**마지막 커밋**: HTTP 기본 포트 18000, 포트 자동 탐색(`run_uvicorn`) 및 Docker 진입 통합
+**마지막 커밋**: pywebview `desktop/app.py`, uvicorn 자식 프로세스·헬스 폴링·종료 정리
 
 ---
 
@@ -303,13 +303,13 @@
 - [x] 앱 실행 시 사용 가능한 포트 자동 탐색 (`SERVER_PORT_AUTOSCAN`, `GET /api/health`에 `listen_port`)
 
 ### 5-2. pywebview 데스크톱 래퍼
-- [ ] `desktop/app.py` 생성
-      — FastAPI 서버를 백그라운드 스레드로 실행
+- [x] `desktop/app.py` 생성
+      — FastAPI(uvicorn)를 **별도 프로세스**로 실행(스레드보다 종료 정리가 명확)
       — `webview.create_window()` 로 네이티브 창 띄우기
-      — 서버 준비 완료 후 창 오픈 (헬스체크 폴링)
-- [ ] 앱 아이콘 설정 (512×512 PNG → `.icns` / `.ico` 변환)
-- [ ] 창 타이틀, 최소 크기, 리사이즈 옵션 설정
-- [ ] 앱 종료 시 FastAPI 서버 프로세스 정리
+      — 서버 준비 완료 후 창 오픈 (`GET /api/health` 폴링)
+- [x] 앱 아이콘: `DESKTOP_ICON_PATH` + `webview.start(icon=...)` (`.icns`/`.ico` 경로 직접 지정, 변환은 문서/README)
+- [x] 창 타이틀·최소 크기·리사이즈: `DESKTOP_WINDOW_*` 환경 변수
+- [x] 앱 종료 시 uvicorn 자식 프로세스 `terminate`/`kill` (`window.events.closed` + `webview.start` 이후 정리)
 
 ### 5-3. PyInstaller 번들링
 - [ ] `desktop/app.spec` 작성

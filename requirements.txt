@@ -11,3 +11,5 @@ python-dotenv>=1.0.1
 pandas>=2.2.0
 requests>=2.32.0
 psycopg[binary]>=3.2.0
+# Phase 5 데스크톱 래퍼 (python -m desktop.app)
+pywebview>=5.4.0
