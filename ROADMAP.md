@@ -7,11 +7,11 @@
 
 ## 📍 현재 작업 위치 (항상 여기를 먼저 확인)
 
-**현재 Phase**: Phase 4 마무리 → Phase 5 준비
+**현재 Phase**: Phase 5 데스크톱·단일 서버 패키징 진행 중
 **현재 브랜치**: feature/phase4-scheduler-docker
-**다음 할 일**: Phase 5 데스크톱 앱 — FastAPI가 React `dist/` 정적 서빙 통합
+**다음 할 일**: 서버 포트 기본 18000 및 사용 가능 포트 자동 탐색(Phase 5-1 잔여)
 **최종 배포 목표**: Phase 5 — pywebview + PyInstaller로 macOS .app / Windows .exe 패키징
-**마지막 커밋**: GitHub Actions CI·클라우드 배포 문서 및 Dockerfile PORT 지원
+**마지막 커밋**: FastAPI `/api` 프리픽스 및 React `dist` 정적 서빙 통합(Docker 빌드 포함)
 
 ---
 
@@ -297,8 +297,8 @@
 > 기술 선택: pywebview (Python 네이티브 창) + PyInstaller (단일 실행 파일 번들)
 
 ### 5-1. 빌드 통합 구조 정비
-- [ ] React 정적 빌드 결과물(`dist/`)을 FastAPI가 서빙하도록 통합
-      — `GET /` → `dist/index.html` 반환, 정적 파일 마운트
+- [x] React 정적 빌드 결과물(`dist/`)을 FastAPI가 서빙하도록 통합
+      — `GET /` → `dist/index.html`, `/assets` 마운트·클라 라우트 SPA 폴백, REST는 `/api/*`
 - [ ] 서버 포트 고정 (기본 18000, `.env`로 변경 가능)
 - [ ] 앱 실행 시 사용 가능한 포트 자동 탐색 로직 추가 (포트 충돌 방지)
 

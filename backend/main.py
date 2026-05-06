@@ -10,8 +10,11 @@ import os
 import re
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 
-from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi import APIRouter, Body, FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.agents.advisor_agent import AdvisorAgent
 from backend.agents.ceo_agent import CEOOrchestrator
@@ -88,6 +91,9 @@ app = FastAPI(
     lifespan=_lifespan,
 )
 
+# REST API 일원화 — SPA 라우트(/analyze/:ticker 등)와 충돌하지 않도록 /api 접두사
+api_router = APIRouter(prefix="/api")
+
 
 def _utc_now_iso() -> str:
     """응답용 UTC ISO 시각 문자열."""
@@ -137,13 +143,24 @@ def _normalize_ticker_list(raw: str) -> list[str]:
     return uniq
 
 
-@app.get("/health")
-async def health() -> dict[str, str]:
-    """서버 동작 확인."""
+async def _health_payload() -> dict[str, str]:
+    """헬스 응답 본문(로드밸런서용 루트·프런트 /api 헬스 겸용)."""
     return {"status": "ok", "timestamp": _utc_now_iso()}
 
 
-@app.get("/search", response_model=SearchResults)
+@app.get("/health")
+async def health_root() -> dict[str, str]:
+    """서버 동작 확인(레거시·인프라용 루트 경로)."""
+    return await _health_payload()
+
+
+@api_router.get("/health")
+async def health_api() -> dict[str, str]:
+    """서버 동작 확인(/api 헬스)."""
+    return await _health_payload()
+
+
+@api_router.get("/search", response_model=SearchResults)
 async def search_symbols(
     q: str = Query(default="", max_length=40, description="종목명 또는 종목코드 검색어"),
     limit: int = Query(default=8, ge=1, le=20, description="최대 검색 결과 수"),
@@ -157,7 +174,7 @@ async def search_symbols(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/system/scheduler")
+@api_router.get("/system/scheduler")
 async def scheduler_status() -> dict[str, str | bool | int]:
     """백그라운드 데이터 갱신 스케줄러 설정 상태(환경 변수 기준)입니다."""
     return {
@@ -167,7 +184,7 @@ async def scheduler_status() -> dict[str, str | bool | int]:
     }
 
 
-@app.get("/system/alerts")
+@api_router.get("/system/alerts")
 async def alerts_status() -> dict[str, str | bool | float]:
     """과열·저평가 알림 채널 설정 요약(URL·비밀번호 미포함)."""
     smtp_on = bool(os.getenv("ALERT_SMTP_HOST", "").strip() and os.getenv("ALERT_EMAIL_TO", "").strip())
@@ -183,7 +200,7 @@ async def alerts_status() -> dict[str, str | bool | float]:
     }
 
 
-@app.get("/analyze/{ticker}", response_model=CEOReport)
+@api_router.get("/analyze/{ticker}", response_model=CEOReport)
 async def analyze_ticker(
     ticker: str,
     persist: bool = Query(
@@ -193,7 +210,7 @@ async def analyze_ticker(
     use_stats_weights: bool = Query(
         True,
         description=(
-            "true면 /agents/stats 성과(이미 채워진 선행수익률)로 에이전트 신뢰도 가중을 적용합니다."
+            "true면 /api/agents/stats 성과(이미 채워진 선행수익률)로 에이전트 신뢰도 가중을 적용합니다."
         ),
     ),
     send_alerts: bool = Query(
@@ -234,7 +251,7 @@ async def analyze_ticker(
         raise HTTPException(status_code=500, detail=f"분석 중 오류: {exc}") from exc
 
 
-@app.get("/reports/recent", response_model=list[AnalysisHistoryItem])
+@api_router.get("/reports/recent", response_model=list[AnalysisHistoryItem])
 async def reports_recent(
     limit: int = Query(50, ge=1, le=200, description="최대 건수"),
 ) -> list[AnalysisHistoryItem]:
@@ -247,7 +264,7 @@ async def reports_recent(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/reports/ticker/{ticker}", response_model=list[AnalysisHistoryItem])
+@api_router.get("/reports/ticker/{ticker}", response_model=list[AnalysisHistoryItem])
 async def reports_for_ticker(
     ticker: str,
     limit: int = Query(30, ge=1, le=100),
@@ -264,7 +281,7 @@ async def reports_for_ticker(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/agents/stats", response_model=AgentPerformanceSummary)
+@api_router.get("/agents/stats", response_model=AgentPerformanceSummary)
 async def agents_stats(
     horizon: int = Query(30, description="평가 거래일 수(30·60·90)", ge=30, le=90),
 ) -> AgentPerformanceSummary:
@@ -286,7 +303,7 @@ async def agents_stats(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/backtest/summary", response_model=BacktestSummary)
+@api_router.get("/backtest/summary", response_model=BacktestSummary)
 async def backtest_summary(
     horizon: int = Query(30, description="평가 거래일 수(30·60·90)", ge=30, le=90),
     limit: int = Query(100, description="응답에 포함할 최근 평가 레코드 수", ge=10, le=300),
@@ -305,7 +322,7 @@ async def backtest_summary(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/screen", response_model=list[ScreeningResult])
+@api_router.get("/screen", response_model=list[ScreeningResult])
 async def screen(
     tickers: str = Query(
         ...,
@@ -365,7 +382,7 @@ async def screen(
         raise HTTPException(status_code=500, detail=f"스크리닝 오류: {exc}") from exc
 
 
-@app.get("/portfolio/advice", response_model=PortfolioAdvice)
+@api_router.get("/portfolio/advice", response_model=PortfolioAdvice)
 async def portfolio_advice(
     holdings: str = Query(
         ...,
@@ -429,7 +446,7 @@ async def portfolio_advice(
     )
 
 
-@app.get("/watchlist", response_model=list[WatchlistItem])
+@api_router.get("/watchlist", response_model=list[WatchlistItem])
 async def watchlist_list() -> list[WatchlistItem]:
     """관심 종목 전체 목록을 반환합니다."""
     try:
@@ -442,7 +459,7 @@ async def watchlist_list() -> list[WatchlistItem]:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/watchlist/summary", response_model=list[WatchlistSummaryItem])
+@api_router.get("/watchlist/summary", response_model=list[WatchlistSummaryItem])
 async def watchlist_summary() -> list[WatchlistSummaryItem]:
     """관심 종목 목록에 종목명·최근가·등락률을 붙여 반환합니다."""
     try:
@@ -456,7 +473,7 @@ async def watchlist_summary() -> list[WatchlistSummaryItem]:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.post("/watchlist", response_model=WatchlistItem, status_code=201)
+@api_router.post("/watchlist", response_model=WatchlistItem, status_code=201)
 async def watchlist_add(body: WatchlistAddRequest = Body(...)) -> WatchlistItem:
     """
     관심 종목을 추가합니다. 이미 있으면 memo만 갱신합니다.
@@ -474,7 +491,7 @@ async def watchlist_add(body: WatchlistAddRequest = Body(...)) -> WatchlistItem:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.delete("/watchlist/{ticker}", status_code=204)
+@api_router.delete("/watchlist/{ticker}", status_code=204)
 async def watchlist_remove(ticker: str) -> None:
     """관심 종목을 삭제합니다."""
     try:
@@ -493,7 +510,7 @@ async def watchlist_remove(ticker: str) -> None:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/sector/hot", response_model=HotSectorsReport)
+@api_router.get("/sector/hot", response_model=HotSectorsReport)
 async def sector_hot(
     pool: int = Query(default=12, ge=4, le=30, description="표본 업종 수"),
     top: int = Query(default=5, ge=1, le=15, description="응답 상위 개수"),
@@ -504,3 +521,82 @@ async def sector_hot(
     except Exception as exc:
         logger.exception("주도 섹터 산출 실패")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+app.include_router(api_router)
+
+
+def _frontend_dist_dir() -> Path:
+    """
+    Vite 빌드 산출물(단일 서버 패키징) 디렉터리입니다.
+
+    ``FRONTEND_DIST_DIR`` 로 PyInstaller 등에서 재정의할 수 있습니다.
+    """
+    raw = os.getenv("FRONTEND_DIST_DIR", "").strip()
+    if raw:
+        return Path(raw).resolve()
+    root = Path(__file__).resolve().parent.parent
+    return (root / "frontend" / "dist").resolve()
+
+
+def _file_under_dist(dist: Path, relative: str) -> Path | None:
+    """``dist`` 밖으로 이탈하지 않는 정적 파일이면 해당 경로, 아니면 None."""
+    rel = relative.strip("/").replace("\\", "/")
+    if not rel or rel.startswith("/") or ".." in Path(rel).parts:
+        return None
+    try:
+        candidate = (dist / rel).resolve()
+        candidate.relative_to(dist)
+    except (ValueError, OSError):
+        return None
+    return candidate if candidate.is_file() else None
+
+
+def _spa_blocked_path(full_path: str) -> bool:
+    """등록되지 않은 `/api/*` 요청과 문서 계열 경로는 index.html 대신 거부합니다."""
+    fp = full_path.strip("/")
+    head = fp.split("/", 1)[0] if fp else ""
+    if head == "api" or fp == "api":
+        return True
+    if head in ("docs", "redoc") or fp == "openapi.json":
+        return True
+    return False
+
+
+def _register_spa_routes() -> None:
+    """``frontend/dist`` 가 있으면 정적 파일·클라이언트 라우팅을 등록합니다."""
+    dist = _frontend_dist_dir()
+    index_html = dist / "index.html"
+    assets_dir = dist / "assets"
+
+    raw_flag = os.getenv("SERVE_SPA", "true").strip().lower()
+    serve = raw_flag not in ("0", "false", "no", "off")
+    if not serve:
+        logger.info("SERVE_SPA 비활성 — React 정적 서빙 미등록.")
+        return
+
+    if not dist.is_dir() or not index_html.is_file():
+        logger.warning(
+            "프런트엔드 빌드 없음 — `frontend` 에서 `npm run build` 후 dist 를 생성하세요. "
+            "현재는 API(/api) 및 /docs 만 제공됩니다.",
+        )
+        return
+
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="spa_assets")
+
+    @app.get("/", include_in_schema=False)
+    async def _spa_index() -> FileResponse:
+        return FileResponse(index_html)
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def _spa_fallback(full_path: str) -> FileResponse:
+        if _spa_blocked_path(full_path):
+            raise HTTPException(status_code=404, detail="Not Found")
+        static_file = _file_under_dist(dist, full_path)
+        if static_file is not None:
+            return FileResponse(static_file)
+        return FileResponse(index_html)
+
+
+_register_spa_routes()

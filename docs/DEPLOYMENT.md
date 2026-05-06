@@ -4,7 +4,7 @@
 
 ## 1. 배포 형태 한눈에 보기
 
-- 프로젝트 루트의 **Dockerfile**로 API 서버 하나를 만듭니다.
+- 프로젝트 루트 **Dockerfile**은 Node로 `frontend/` 를 빌드한 뒤, **FastAPI** 가 `frontend/dist` 를 함께 서빙하는 단일 이미지입니다.
 - 실행 시 필요한 설정은 거의 모두 **환경 변수**(비밀 API 키 포함)입니다. `.env.example`을 참고하세요.
 - **데이터 저장**: 기본은 SQLite 파일(`./data`). 여러 서버 인스턴스나 재시작 시 데이터를 안정적으로 두려면 **PostgreSQL**과 `DATABASE_URL`을 사용하는 편이 좋습니다.
 
@@ -17,6 +17,10 @@
 | `DART_API_KEY` | 공시·재무 (선택에 따라 기능 제한) |
 | `ECOS_API_KEY` | 한국은행 거시 지표 |
 | `PORT` | 많은 호스팅이 자동 설정. Dockerfile은 `PORT`가 없으면 **8000**을 씁니다. |
+| `FRONTEND_DIST_DIR` | (선택) PyInstaller 번들 등에서 빌드된 React `dist` 절대 경로 |
+| `SERVE_SPA` | 기본 `true`. `dist` 가 없으면 API만 제공. `false` 이면 `dist` 가 있어도 정적 서빙 생략 |
+
+**API 경로:** JSON API는 접두사 **`/api`** 입니다(예: `GET /api/health`, `GET /api/analyze/005930`). 호환용으로 **`GET /health`**(루트)도 동일 헬스 응답을 반환합니다.
 
 알림·스케줄러 등은 운영 정책에 맞게 `.env.example` 나머지를 채우면 됩니다.
 

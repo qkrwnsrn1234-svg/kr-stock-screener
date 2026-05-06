@@ -13,7 +13,7 @@ import type {
 } from "@/types/api";
 
 /**
- * Vite 개발 서버 프록시 기준: `/api` → 백엔드 루트
+ * API 기본 경로 — 개발(Vite `/api` 프록시)과 프로덕션(동일 출처 `/api`) 동일
  */
 const BASE = "/api";
 

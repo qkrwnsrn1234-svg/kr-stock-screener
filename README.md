@@ -16,7 +16,9 @@ export PYTHONPATH=.
 uvicorn backend.main:app --reload --port 8000
 ```
 
-브라우저에서 `http://127.0.0.1:8000/docs` 로 API 문서를 열 수 있습니다.
+- API 문서: `http://127.0.0.1:8000/docs`  
+- 같은 서버에서 SPA를 쓰려면 프런트 빌드 후 동일 포트로 접속: `cd frontend && npm ci && npm run build` → `http://127.0.0.1:8000/`  
+- 개발 시에는 Vite(`npm run dev`, 기본 5173)가 `/api`를 백엔드로 프록시합니다.
 
 ## Docker
 
