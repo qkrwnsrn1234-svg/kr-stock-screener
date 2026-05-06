@@ -9,9 +9,9 @@
 
 **현재 Phase**: Phase 5 데스크톱·단일 서버 패키징 진행 중
 **현재 브랜치**: feature/phase4-scheduler-docker
-**다음 할 일**: PyInstaller 번들 `desktop/app.spec` 및 빌드 스크립트(Phase 5-3)
+**다음 할 일**: (선택) 태그 푸시 시 PyInstaller 빌드·GitHub Releases 자동화, 또는 Phase 1 데이터/지표 보강
 **최종 배포 목표**: Phase 5 — pywebview + PyInstaller로 macOS .app / Windows .exe 패키징
-**마지막 커밋**: pywebview `desktop/app.py`, uvicorn 자식 프로세스·헬스 폴링·종료 정리
+**마지막 커밋**: PyInstaller `desktop/app.spec`, 빌드 스크립트·frozen 경로·캐시 `KR_STOCK_CACHE_DIR`
 
 ---
 
@@ -312,18 +312,14 @@
 - [x] 앱 종료 시 uvicorn 자식 프로세스 `terminate`/`kill` (`window.events.closed` + `webview.start` 이후 정리)
 
 ### 5-3. PyInstaller 번들링
-- [ ] `desktop/app.spec` 작성
-      — `backend/`, `frontend/dist/` 정적 파일 포함
-      — `.env` 및 데이터 파일 동봉
-      — 숨겨진 import 명시 (pykrx, dart_fss 등)
-- [ ] macOS: `--onefile` 또는 `--onedir` 선택 후 `.app` 번들 생성
-- [ ] Windows: `.exe` + NSIS 인스톨러 생성 (선택)
-- [ ] 번들 크기 최적화 (불필요한 패키지 제외)
+- [x] `desktop/app.spec` 작성 (`desktop/pyinstaller_entry.py`, `collect_all`·`collect_submodules(backend)`·`frontend/dist`·`.env.example` 동봉)
+- [x] macOS **onedir** + `BUNDLE` → `dist/KRStockScreener.app` (Windows/Linux 는 `dist/KRStockScreener/` 폴더)
+- [ ] Windows: `.exe` NSIS 인스톨러 생성 (선택)
+- [x] 번들 크기 일부 절감: `excludes`(matplotlib·tkinter·PyQt5 등), `upx=False`
+- [x] 런타임: ``desktop/frozen_env.py`` 로 사용자 영역 DB·캐시·`.env` 복사, ``KR_STOCK_CACHE_DIR`` (`backend/data/cache.py`)
 
 ### 5-4. 빌드 자동화
-- [ ] `Makefile` 또는 `build.sh` 작성
-      — `make build-mac` → macOS `.app` 생성
-      — `make build-win` → Windows `.exe` 생성
+- [x] `scripts/build_desktop.sh` + `Makefile` (`build-desktop`, `build-mac` / `build-win` → 동일 스크립트)
 - [ ] GitHub Actions CI: 태그 푸시 시 자동 빌드 + Releases 업로드 (선택)
 
 ---
@@ -333,8 +329,7 @@
 - DB: SQLite (Phase 1~3) → PostgreSQL (Phase 4)
 - 한국 주식/ETF 위주, 미국 지수는 참고용
 - 에이전트 호출: CEO가 병렬 호출 후 반론 라운드 진행
-- Python: 3.14 (현재 맥 환경) → **⚠️ Phase 5 진입 전 pyenv로 3.11 또는 3.12로 전환 필수**
-  (PyInstaller가 현재 3.12까지만 공식 지원, 3.14는 패키징 실패 가능)
+- Python: 배포용 데스크톱 빌드는 **3.11~3.12** 권장(PyInstaller·휠 호환). 3.14 등 최신 버전은 로컬에서 빌드될 수 있으나 공식 지원 밖일 수 있음.
 
 ---
 

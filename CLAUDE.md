@@ -44,7 +44,13 @@ kr-stock-screener/
 ├── frontend/
 │   └── src/
 ├── desktop/
-│   └── app.py         # Phase 5 pywebview 데스크톱 래퍼
+│   ├── app.py              # Phase 5 pywebview 데스크톱 래퍼
+│   ├── app.spec            # PyInstaller
+│   ├── frozen_env.py       # 번들 런타임 경로
+│   └── pyinstaller_entry.py
+├── scripts/
+│   └── build_desktop.sh    # 데스크톱 번들 빌드
+├── Makefile                # make build-desktop 등
 └── data/
 
 ## AI 에이전트 구성

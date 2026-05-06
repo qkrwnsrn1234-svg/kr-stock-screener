@@ -29,3 +29,7 @@ node_modules/
 frontend/node_modules/
 frontend/dist/
 *.tsbuildinfo
+
+# PyInstaller (저장소 루트 dist·build — 번들 산출물은 커밋하지 않음)
+/dist/
+/build/

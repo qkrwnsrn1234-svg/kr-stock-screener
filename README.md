@@ -36,6 +36,20 @@ python3 -m desktop.app
 - 백엔드는 **127.0.0.1** 에만 바인드합니다. 아이콘·창 크기 등은 `.env.example` 의 `DESKTOP_*` 변수를 참고하세요.
 - macOS `.icns` / Windows `.ico` 는 `DESKTOP_ICON_PATH` 에 직접 지정하거나, PNG 를 변환한 뒤 경로를 넣으면 됩니다.
 
+### PyInstaller 번들 (`.app` / onedir)
+
+PyInstaller 공식 지원은 **Python 3.12 이하** 권장([ROADMAP](./ROADMAP.md) 참고). 저장소 루트에서:
+
+```bash
+./scripts/build_desktop.sh
+# 또는: make build-desktop   (동일)
+```
+
+- **macOS** 결과물: `dist/KRStockScreener.app` (onedir + BUNDLE)
+- **Windows/Linux** 결과물: `dist/KRStockScreener/` 폴더 내 실행 파일
+- 번들된 앱은 첫 실행 시 사용자 데이터 디렉터리에 SQLite·캐시·`.env` 를 둡니다(`desktop/frozen_env.py`).
+- `requirements-build.txt` 에 `pyinstaller` 가 있습니다.
+
 ## Docker
 
 ```bash

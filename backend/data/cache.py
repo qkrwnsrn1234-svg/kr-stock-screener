@@ -1,8 +1,8 @@
 """
 디스크 기반 TTL 캐시 모듈입니다.
 
-동일 키에 대한 외부 API·데이터 소스 호출을 줄이기 위해 프로젝트 루트의
-``data/cache`` 아래에 pickle 페이로드와 만료 시각 메타를 저장합니다.
+기본 저장 위치는 프로젝트 루트의 ``data/cache`` 입니다.
+PyInstaller 데스크톱 번들 등에서는 ``KR_STOCK_CACHE_DIR`` 로 쓰기 가능한 경로를 지정할 수 있습니다.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import pickle
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -24,7 +25,22 @@ DEFAULT_TTL_SECONDS = 3600
 
 # 프로젝트 루트 (backend/data 기준 상위 두 단계)
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
-CACHE_ROOT = _PROJECT_ROOT / "data" / "cache"
+
+
+def _cache_root_dir() -> Path:
+    """
+    디스크 캐시 루트 디렉터리입니다.
+
+    PyInstaller 번들 등 쓰기 가능한 경로가 필요하면 ``KR_STOCK_CACHE_DIR`` 을 설정합니다.
+    """
+    raw = os.getenv("KR_STOCK_CACHE_DIR", "").strip()
+    if raw:
+        return Path(raw).resolve()
+    return _PROJECT_ROOT / "data" / "cache"
+
+
+# 런타임에 환경 변수로 재지정 가능(``desktop.app`` 번들 기동 시 설정)
+CACHE_ROOT = _cache_root_dir()
 
 
 def build_cache_key(*parts: str) -> str:

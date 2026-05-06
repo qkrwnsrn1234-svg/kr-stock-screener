@@ -19,8 +19,11 @@ logger = logging.getLogger(__name__)
 
 
 def _ensure_repo_on_path() -> Path:
-    """``backend`` 임포트를 위해 저장소 루트를 ``sys.path`` 앞에 넣습니다."""
-    repo = Path(__file__).resolve().parent.parent
+    """``backend`` 임포트를 위해 프로젝트 루트(번들이면 ``_MEIPASS``)를 ``sys.path`` 앞에 둡니다."""
+    if getattr(sys, "frozen", False) and getattr(sys, "_MEIPASS", None):
+        repo = Path(str(sys._MEIPASS))
+    else:
+        repo = Path(__file__).resolve().parent.parent
     root = str(repo)
     if root not in sys.path:
         sys.path.insert(0, root)
@@ -91,11 +94,17 @@ def _uvicorn_worker(bind_host: str, port: int, log_level: str, access_log: bool)
 
 def main() -> None:
     """환경을 읽고 uvicorn 을 띄운 뒤 pywebview 창을 엽니다."""
+    from desktop.frozen_env import apply_frozen_runtime, user_data_dir
+
+    apply_frozen_runtime()
     repo = _ensure_repo_on_path()
 
     from dotenv import load_dotenv
 
-    load_dotenv(repo / ".env")
+    if getattr(sys, "frozen", False):
+        load_dotenv(user_data_dir() / ".env")
+    else:
+        load_dotenv(repo / ".env")
     load_dotenv()
 
     # 데스크톱은 로컬 뷰어만 — LAN 바인드 방지
