@@ -9,9 +9,9 @@
 
 **현재 Phase**: Phase 4 — 고도화 및 배포 (일부 진행)
 **현재 브랜치**: feature/phase4-scheduler-docker
-**다음 할 일**: 과열/저평가 알림, 백테스트 대시보드, PostgreSQL, 클라우드 CI
+**다음 할 일**: 백테스트 대시보드, PostgreSQL, 클라우드 CI
 **최종 배포 목표**: Phase 5 — pywebview + PyInstaller로 macOS .app / Windows .exe 패키징
-**마지막 커밋**: Phase 4 스케줄러·Docker·/system/scheduler
+**마지막 커밋**: Phase 4 과열·저평가 알림(웹훅·SMTP), /system/alerts
 
 ---
 
@@ -187,7 +187,7 @@
 ## Phase 4 — 고도화 및 배포
 
 - [x] 실시간 데이터 업데이트 — 백그라운드 스케줄러(`SCHEDULER_ENABLED`, `SCHEDULER_INTERVAL_SECONDS`), KRX 상장목록 캐시 워밍, `GET /system/scheduler`
-- [ ] 과열/저평가 감지 시 알림 (이메일/슬랙)
+- [x] 과열/저평가 감지 시 알림 — Slack 호환 `ALERT_WEBHOOK_URL`, 선택 `SMTP` (`/analyze`·`/screen`의 `send_alerts`, `GET /system/alerts`)
 - [ ] 백테스트 결과 대시보드
 - [ ] PostgreSQL 이관
 - [x] Docker — `Dockerfile` + `docker-compose.yml` (`./data` 볼륨, API 단일 서비스)

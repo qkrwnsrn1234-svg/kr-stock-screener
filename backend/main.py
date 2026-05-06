@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import re
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -23,13 +24,22 @@ from backend.agents.models import (
     PortfolioAdvice,
     ScreeningResult,
 )
-from backend.screener.hot_sectors import build_hot_sectors
-from backend.screener.screening import build_screening_result
 from backend.jobs.background_tasks import (
     scheduler_enabled,
     scheduler_interval_seconds,
     scheduler_loop,
 )
+from backend.notify.alerts import (
+    alert_on_overheat,
+    alert_on_undervalue,
+    alerts_any_channel_configured,
+    cooldown_seconds,
+    notify_screening_results_sync,
+    undervalue_min_score,
+    webhook_url,
+)
+from backend.screener.hot_sectors import build_hot_sectors
+from backend.screener.screening import build_screening_result
 from backend.storage.analysis_history import (
     compute_agent_performance,
     list_recent_records,
@@ -135,6 +145,22 @@ async def scheduler_status() -> dict[str, str | bool | int]:
     }
 
 
+@app.get("/system/alerts")
+async def alerts_status() -> dict[str, str | bool | float]:
+    """과열·저평가 알림 채널 설정 요약(URL·비밀번호 미포함)."""
+    smtp_on = bool(os.getenv("ALERT_SMTP_HOST", "").strip() and os.getenv("ALERT_EMAIL_TO", "").strip())
+    return {
+        "timestamp": _utc_now_iso(),
+        "any_channel_configured": alerts_any_channel_configured(),
+        "webhook_configured": bool(webhook_url()),
+        "smtp_configured": smtp_on,
+        "alert_on_overheat": alert_on_overheat(),
+        "alert_on_undervalue": alert_on_undervalue(),
+        "undervalue_min_score": undervalue_min_score(),
+        "cooldown_seconds": cooldown_seconds(),
+    }
+
+
 @app.get("/analyze/{ticker}", response_model=CEOReport)
 async def analyze_ticker(
     ticker: str,
@@ -148,6 +174,10 @@ async def analyze_ticker(
             "true면 /agents/stats 성과(이미 채워진 선행수익률)로 에이전트 신뢰도 가중을 적용합니다."
         ),
     ),
+    send_alerts: bool = Query(
+        True,
+        description="false면 과열·저평가 알림(웹훅/메일)을 보내지 않습니다.",
+    ),
 ) -> CEOReport:
     """
     단일 종목에 대해 전 에이전트 병렬 분석 후 CEO 종합 보고서를 반환합니다.
@@ -160,6 +190,12 @@ async def analyze_ticker(
                 await asyncio.to_thread(save_ceo_report_blocking, report)
             except Exception as exc:
                 logger.warning("분석 이력 저장 실패(응답은 정상): %s", exc)
+        if send_alerts and alerts_any_channel_configured():
+            try:
+                sr = await build_screening_result(report)
+                await asyncio.to_thread(notify_screening_results_sync, [sr], "analyze")
+            except Exception as exc:
+                logger.warning("분석 알림 전송 실패(응답은 정상): %s", exc)
         return report
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -231,6 +267,10 @@ async def screen(
         False,
         description="true면 CEO가 성적표 기반 에이전트 신뢰도 가중을 사용(다종목일 때 부담 증가).",
     ),
+    send_alerts: bool = Query(
+        True,
+        description="false면 과열·저평가 알림(웹훅/메일)을 보내지 않습니다.",
+    ),
 ) -> list[ScreeningResult]:
     """
     다종목 스크리닝 — 종목별 에이전트 전체 파이프라인·저평가·과열 요약을 반환합니다.
@@ -254,7 +294,13 @@ async def screen(
             return await build_screening_result(report)
 
     try:
-        return list(await asyncio.gather(*[_one(c) for c in codes]))
+        results = list(await asyncio.gather(*[_one(c) for c in codes]))
+        if send_alerts and alerts_any_channel_configured():
+            try:
+                await asyncio.to_thread(notify_screening_results_sync, results, "screen")
+            except Exception as exc:
+                logger.warning("스크리닝 알림 전송 실패(응답은 정상): %s", exc)
+        return results
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
