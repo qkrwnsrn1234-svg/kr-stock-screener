@@ -14,9 +14,22 @@ from fastapi import FastAPI, HTTPException, Query
 from backend.agents.advisor_agent import AdvisorAgent
 from backend.agents.ceo_agent import CEOOrchestrator
 from backend.agents.financial_agent import FinancialAgent
-from backend.agents.models import CEOReport, HotSectorsReport, PortfolioAdvice, ScreeningResult
+from backend.agents.models import (
+    AgentPerformanceSummary,
+    AnalysisHistoryItem,
+    CEOReport,
+    HotSectorsReport,
+    PortfolioAdvice,
+    ScreeningResult,
+)
 from backend.screener.hot_sectors import build_hot_sectors
 from backend.screener.screening import build_screening_result
+from backend.storage.analysis_history import (
+    compute_agent_performance,
+    list_recent_records,
+    list_records_for_ticker,
+    save_ceo_report_blocking,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -88,18 +101,82 @@ async def health() -> dict[str, str]:
 
 
 @app.get("/analyze/{ticker}", response_model=CEOReport)
-async def analyze_ticker(ticker: str) -> CEOReport:
+async def analyze_ticker(
+    ticker: str,
+    persist: bool = Query(
+        True,
+        description="true면 분석 결과를 SQLite 이력(DB)에 저장합니다.",
+    ),
+) -> CEOReport:
     """
     단일 종목에 대해 전 에이전트 병렬 분석 후 CEO 종합 보고서를 반환합니다.
     """
     try:
         orch = CEOOrchestrator()
-        return await orch.run(ticker)
+        report = await orch.run(ticker)
+        if persist:
+            try:
+                await asyncio.to_thread(save_ceo_report_blocking, report)
+            except Exception as exc:
+                logger.warning("분석 이력 저장 실패(응답은 정상): %s", exc)
+        return report
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("분석 실패 ticker=%s", ticker)
         raise HTTPException(status_code=500, detail=f"분석 중 오류: {exc}") from exc
+
+
+@app.get("/reports/recent", response_model=list[AnalysisHistoryItem])
+async def reports_recent(
+    limit: int = Query(50, ge=1, le=200, description="최대 건수"),
+) -> list[AnalysisHistoryItem]:
+    """최근 저장된 분석 이력(요약) 목록."""
+    try:
+        rows = await asyncio.to_thread(list_recent_records, limit)
+        return [AnalysisHistoryItem(**r) for r in rows]
+    except Exception as exc:
+        logger.exception("이력 조회 실패")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/reports/ticker/{ticker}", response_model=list[AnalysisHistoryItem])
+async def reports_for_ticker(
+    ticker: str,
+    limit: int = Query(30, ge=1, le=100),
+) -> list[AnalysisHistoryItem]:
+    """특정 종목의 저장된 분석 이력."""
+    try:
+        code = FinancialAgent().validate_ticker(ticker.strip().zfill(6))
+        rows = await asyncio.to_thread(list_records_for_ticker, code, limit)
+        return [AnalysisHistoryItem(**r) for r in rows]
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("종목 이력 조회 실패")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/agents/stats", response_model=AgentPerformanceSummary)
+async def agents_stats(
+    horizon: int = Query(30, description="평가 거래일 수(30·60·90)", ge=30, le=90),
+) -> AgentPerformanceSummary:
+    """
+    저장된 분석 대비 선행 수익률로 에이전트·CEO 적중 휴리스틱을 요약합니다.
+
+    첫 호출 시 수익률 컬럼이 비어 있으면 OHLCV로 채웁니다(시간 소요 가능).
+    """
+    if horizon not in (30, 60, 90):
+        raise HTTPException(
+            status_code=422,
+            detail="horizon은 30, 60, 90 중 하나여야 합니다.",
+        )
+    try:
+        raw = await asyncio.to_thread(compute_agent_performance, horizon)
+        return AgentPerformanceSummary(**raw)
+    except Exception as exc:
+        logger.exception("에이전트 통계 산출 실패")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @app.get("/screen", response_model=list[ScreeningResult])

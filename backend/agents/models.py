@@ -201,3 +201,35 @@ class PortfolioAdvice(BaseModel):
             if w < 0:
                 raise ValueError(f"비중은 0 이상이어야 합니다: {k}={w}")
         return v
+
+
+class AnalysisHistoryItem(BaseModel):
+    """저장된 분석 이력 목록용 요약 항목입니다."""
+
+    id: int = Field(..., ge=1)
+    ticker: str = Field(..., min_length=6, max_length=6)
+    analyzed_at: str = Field(..., description="ISO8601 시각 문자열")
+    ref_price: float | None = Field(default=None, description="분석 시점 기준가")
+    final_opinion: str | None = Field(default=None, description="CEO 최종 의견")
+    return_30d: float | None = Field(default=None, description="30거래일 후 수익률(소수)")
+    return_60d: float | None = Field(default=None, description="60거래일 후 수익률(소수)")
+    return_90d: float | None = Field(default=None, description="90거래일 후 수익률(소수)")
+
+
+class AgentStatRow(BaseModel):
+    """에이전트(또는 CEO) 단위 적중 통계입니다."""
+
+    agent_name: str = Field(..., description="표시 이름")
+    samples: int = Field(..., ge=0)
+    hits: int = Field(..., ge=0)
+    hit_rate: float | None = Field(default=None, description="적중 비율 0~1, 표본 없으면 null")
+
+
+class AgentPerformanceSummary(BaseModel):
+    """에이전트 성적표 요약 API 응답."""
+
+    evaluated_records: int = Field(..., ge=0, description="수익률 계산에 사용된 분석 건수")
+    horizon_trading_days: int = Field(default=30, description="평가에 쓴 거래일 수")
+    by_agent: list[AgentStatRow] = Field(default_factory=list)
+    ceo: AgentStatRow
+    timestamp: str = Field(..., description="응답 생성 시각 ISO(UTC)")
