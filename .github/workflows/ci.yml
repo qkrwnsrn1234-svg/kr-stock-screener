@@ -1,0 +1,53 @@
+# PR·push 시 백엔드 문법 검사 및 Docker 이미지 빌드 검증
+
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 3.12 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 패키지 문법 검사 (compileall)
+        run: python -m compileall backend
+
+      - name: SQLite 이관 스크립트 dry-run
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: python backend/scripts/migrate_sqlite_to_postgres.py --dry-run
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Docker 빌드 (푸시 없음)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: kr-stock-screener:ci
