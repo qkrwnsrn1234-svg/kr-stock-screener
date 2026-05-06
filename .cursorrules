@@ -1,0 +1,84 @@
+# ============================================================
+# KR Stock Screener — Cursor AI 규칙
+# ============================================================
+
+## 프로젝트 정체성
+이 프로젝트는 한국 주식/ETF 분석 스크리닝 시스템이다.
+여러 AI 에이전트가 각자의 전문 지표로 종목을 분석하고
+CEO 에이전트가 최종 판단을 내리는 "AI 투자 회사" 구조다.
+자세한 구조는 CLAUDE.md 참조.
+
+## 언어 및 프레임워크
+- Backend: Python 3.11+, FastAPI
+- Frontend: React 18, TypeScript
+- AI: Anthropic Claude API
+
+## Python 코딩 규칙
+
+### 필수 사항
+- 모든 함수와 클래스에 한국어 docstring 작성
+- 모든 인수와 반환값에 타입 힌트 작성
+- 에러 처리는 반드시 try/except + logging 사용
+- 매직 넘버 금지 → 상수로 추출
+
+### 네이밍 컨벤션
+- 파일명: snake_case (예: financial_agent.py)
+- 클래스명: PascalCase (예: FinancialAgent)
+- 함수/변수명: snake_case (예: get_financial_data)
+- 상수: UPPER_SNAKE_CASE (예: MAX_RETRY_COUNT)
+
+### 함수 작성 예시
+def analyze_per(ticker: str, period: int = 5) -> dict[str, float]:
+    """
+    PER(주가수익비율)을 분석합니다.
+
+    Args:
+        ticker: 종목코드 (예: '005930')
+        period: 분석 기간(년) (기본값: 5)
+
+    Returns:
+        current_per, avg_per, peer_avg_per를 담은 딕셔너리
+
+    Raises:
+        DataNotFoundError: 데이터를 찾을 수 없을 때
+    """
+
+### 에이전트 구현 규칙
+- 모든 에이전트는 base_agent.py의 BaseAgent를 상속
+- analyze() 메서드는 반드시 AgentResponse 타입 반환
+- 에이전트 간 직접 호출 금지 → CEO가 오케스트레이션
+- 각 에이전트는 독립적으로 동작 가능해야 함
+
+### API 키 및 보안
+- API 키 절대 코드에 하드코딩 금지
+- 반드시 .env 파일과 python-dotenv 사용
+- 예: api_key = os.getenv("ANTHROPIC_API_KEY")
+
+## TypeScript/React 코딩 규칙
+
+### 필수 사항
+- any 타입 사용 금지 → 명확한 타입 정의
+- 컴포넌트는 함수형 컴포넌트만 사용
+- 상태 관리: useState, useReducer 우선
+- 파일명: PascalCase (컴포넌트), camelCase (훅/유틸)
+
+### 컴포넌트 구조
+- props 타입은 컴포넌트 파일 상단에 interface로 정의
+- 커스텀 훅은 hooks/ 폴더에 분리
+- 차트 컴포넌트는 Recharts 사용
+
+## 임포트 순서 (Python)
+1. 표준 라이브러리
+2. 서드파티 라이브러리
+3. 로컬 모듈
+(각 그룹 사이 빈 줄 하나)
+
+## 주석 언어
+- 모든 주석과 docstring: 한국어
+- 변수명/함수명: 영어 snake_case
+
+## 절대 하지 말 것
+- print() 디버깅 → logging 모듈 사용
+- 하드코딩된 경로 → 상대경로 또는 config 사용
+- 동기 코드로 외부 API 호출 → async/await 사용
+- 에러 무시 (except: pass) → 반드시 로깅 처리
