@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, HTTPException, Query
@@ -24,6 +25,11 @@ from backend.agents.models import (
 )
 from backend.screener.hot_sectors import build_hot_sectors
 from backend.screener.screening import build_screening_result
+from backend.jobs.background_tasks import (
+    scheduler_enabled,
+    scheduler_interval_seconds,
+    scheduler_loop,
+)
 from backend.storage.analysis_history import (
     compute_agent_performance,
     list_recent_records,
@@ -39,10 +45,29 @@ logging.basicConfig(level=logging.INFO)
 MAX_SCREEN_TICKERS = 8
 _TICKER_SPLIT_RE = re.compile(r"[\s,]+")
 
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    """앱 기동·종료 시 백그라운드 스케줄러를 연결합니다."""
+    stop_scheduler = asyncio.Event()
+    sched_task: asyncio.Task[None] | None = None
+    if scheduler_enabled():
+        sched_task = asyncio.create_task(scheduler_loop(stop_scheduler))
+    yield
+    if sched_task is not None:
+        stop_scheduler.set()
+        sched_task.cancel()
+        try:
+            await sched_task
+        except asyncio.CancelledError:
+            pass
+
+
 app = FastAPI(
     title="KR Stock Screener API",
     description="AI 멀티에이전트 기반 한국 주식 분석 백엔드",
     version="0.1.0",
+    lifespan=_lifespan,
 )
 
 
@@ -98,6 +123,16 @@ def _normalize_ticker_list(raw: str) -> list[str]:
 async def health() -> dict[str, str]:
     """서버 동작 확인."""
     return {"status": "ok", "timestamp": _utc_now_iso()}
+
+
+@app.get("/system/scheduler")
+async def scheduler_status() -> dict[str, str | bool | int]:
+    """백그라운드 데이터 갱신 스케줄러 설정 상태(환경 변수 기준)입니다."""
+    return {
+        "timestamp": _utc_now_iso(),
+        "scheduler_enabled": scheduler_enabled(),
+        "interval_seconds": scheduler_interval_seconds(),
+    }
 
 
 @app.get("/analyze/{ticker}", response_model=CEOReport)

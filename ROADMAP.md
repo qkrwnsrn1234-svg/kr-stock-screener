@@ -7,11 +7,11 @@
 
 ## 📍 현재 작업 위치 (항상 여기를 먼저 확인)
 
-**현재 Phase**: Phase 3 — 프론트엔드 대시보드 (1차 완료)
-**현재 브랜치**: feature/phase3-dashboard
-**다음 할 일**: Phase 4(실시간·알림·DB 이관) 또는 Phase 1 에이전트 세부 지표 보강, Phase 5 데스크톱 통합
+**현재 Phase**: Phase 4 — 고도화 및 배포 (일부 진행)
+**현재 브랜치**: feature/phase4-scheduler-docker
+**다음 할 일**: 과열/저평가 알림, 백테스트 대시보드, PostgreSQL, 클라우드 CI
 **최종 배포 목표**: Phase 5 — pywebview + PyInstaller로 macOS .app / Windows .exe 패키징
-**마지막 커밋**: Phase 3 Vite React 대시보드(분석·스크리닝·섹터·성적표·포폴)
+**마지막 커밋**: Phase 4 스케줄러·Docker·/system/scheduler
 
 ---
 
@@ -186,11 +186,12 @@
 
 ## Phase 4 — 고도화 및 배포
 
-- [ ] 실시간 데이터 업데이트 (스케줄러)
+- [x] 실시간 데이터 업데이트 — 백그라운드 스케줄러(`SCHEDULER_ENABLED`, `SCHEDULER_INTERVAL_SECONDS`), KRX 상장목록 캐시 워밍, `GET /system/scheduler`
 - [ ] 과열/저평가 감지 시 알림 (이메일/슬랙)
 - [ ] 백테스트 결과 대시보드
 - [ ] PostgreSQL 이관
-- [ ] Docker + 클라우드 배포
+- [x] Docker — `Dockerfile` + `docker-compose.yml` (`./data` 볼륨, API 단일 서비스)
+- [ ] 클라우드 배포 (CI/CD, 호스팅)
 
 ---
 

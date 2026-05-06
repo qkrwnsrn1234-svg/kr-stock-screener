@@ -1,0 +1,20 @@
+# Git, 로컬 환경
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+.venv
+venv
+__pycache__
+*.pyc
+.cursor
+.idea
+.vscode
+
+# 프론트 (API 이미지에 불필요)
+frontend/node_modules
+frontend/dist
+
+# 데이터는 런타임 볼륨으로 마운트
+# data/

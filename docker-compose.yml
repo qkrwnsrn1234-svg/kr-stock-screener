@@ -1,0 +1,20 @@
+# 로컬·단일 호스트 실행용 (API + 영속 데이터 볼륨)
+# 사용: docker compose up --build
+# API: http://127.0.0.1:8000  문서: /docs
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # 스케줄러: KRX 상장목록 등 캐시 주기적 워밍
+      SCHEDULER_ENABLED: "true"
+      SCHEDULER_INTERVAL_SECONDS: "3600"
+      # 호출 시 호스트 셸에서 전달 (또는 .env + docker compose --env-file)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      DART_API_KEY: ${DART_API_KEY:-}
+      ECOS_API_KEY: ${ECOS_API_KEY:-}
+    volumes:
+      # SQLite·디스크 캐시 영속화 (호스트 ./data 와 공유)
+      - ./data:/app/data
