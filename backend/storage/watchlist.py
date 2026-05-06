@@ -1,8 +1,8 @@
 """
-관심 종목(Watchlist) SQLite 저장소.
+관심 종목(Watchlist) 저장소.
 
 테이블: watchlist
-  - id         INTEGER PRIMARY KEY AUTOINCREMENT
+  - id         자동 증가 기본키
   - ticker     TEXT NOT NULL (6자리)
   - added_at   TEXT NOT NULL (ISO8601 UTC)
   - memo       TEXT DEFAULT ''
@@ -12,36 +12,29 @@
 from __future__ import annotations
 
 import logging
-import sqlite3
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
+
+from backend.storage.db import connect, execute, primary_key_sql, row_to_dict
 
 logger = logging.getLogger(__name__)
 
 
-def _default_db_path() -> Path:
-    """관심 종목 DB를 분석 이력 DB와 같은 data/ 디렉터리에 저장합니다."""
-    root = Path(__file__).resolve().parents[2]
-    return root / "data" / "watchlist.db"
-
-
-def _connect() -> sqlite3.Connection:
-    """SQLite 연결을 생성하고 테이블을 초기화합니다."""
-    path = _default_db_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
+def _connect() -> Any:
+    """저장소 연결을 생성하고 테이블을 초기화합니다."""
+    conn = connect("watchlist.db", sqlite_env_var="WATCHLIST_DB_PATH")
     _init_table(conn)
     return conn
 
 
-def _init_table(conn: sqlite3.Connection) -> None:
+def _init_table(conn: Any) -> None:
     """watchlist 테이블이 없으면 생성합니다."""
-    conn.execute(
-        """
+    pk_sql = primary_key_sql()
+    execute(
+        conn,
+        f"""
         CREATE TABLE IF NOT EXISTS watchlist (
-            id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            id       {pk_sql},
             ticker   TEXT    NOT NULL,
             added_at TEXT    NOT NULL,
             memo     TEXT    DEFAULT '',
@@ -50,6 +43,15 @@ def _init_table(conn: sqlite3.Connection) -> None:
         """
     )
     conn.commit()
+
+
+def init_watchlist_db() -> None:
+    """watchlist 테이블만 생성합니다 (마이그레이션·배포 초기화용, 멱등)."""
+    conn = connect("watchlist.db", sqlite_env_var="WATCHLIST_DB_PATH")
+    try:
+        _init_table(conn)
+    finally:
+        conn.close()
 
 
 def _utc_now_iso() -> str:
@@ -75,7 +77,8 @@ def add_ticker(ticker: str, memo: str = "") -> dict[str, Any]:
     conn = _connect()
     try:
         now = _utc_now_iso()
-        conn.execute(
+        execute(
+            conn,
             """
             INSERT INTO watchlist (ticker, added_at, memo)
             VALUES (?, ?, ?)
@@ -84,11 +87,12 @@ def add_ticker(ticker: str, memo: str = "") -> dict[str, Any]:
             (ticker, now, memo),
         )
         conn.commit()
-        row = conn.execute(
+        row = execute(
+            conn,
             "SELECT id, ticker, added_at, memo FROM watchlist WHERE ticker = ?",
             (ticker,),
         ).fetchone()
-        return dict(row)
+        return row_to_dict(row)
     finally:
         conn.close()
 
@@ -106,7 +110,7 @@ def remove_ticker(ticker: str) -> bool:
     ticker = ticker.strip().zfill(6)
     conn = _connect()
     try:
-        cur = conn.execute("DELETE FROM watchlist WHERE ticker = ?", (ticker,))
+        cur = execute(conn, "DELETE FROM watchlist WHERE ticker = ?", (ticker,))
         conn.commit()
         return cur.rowcount > 0
     finally:
@@ -122,10 +126,11 @@ def list_tickers() -> list[dict[str, Any]]:
     """
     conn = _connect()
     try:
-        rows = conn.execute(
+        rows = execute(
+            conn,
             "SELECT id, ticker, added_at, memo FROM watchlist ORDER BY added_at DESC"
         ).fetchall()
-        return [dict(r) for r in rows]
+        return [row_to_dict(r) for r in rows]
     finally:
         conn.close()
 
@@ -140,10 +145,11 @@ def get_ticker(ticker: str) -> dict[str, Any] | None:
     ticker = ticker.strip().zfill(6)
     conn = _connect()
     try:
-        row = conn.execute(
+        row = execute(
+            conn,
             "SELECT id, ticker, added_at, memo FROM watchlist WHERE ticker = ?",
             (ticker,),
         ).fetchone()
-        return dict(row) if row else None
+        return row_to_dict(row) if row else None
     finally:
         conn.close()

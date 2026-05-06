@@ -1,55 +1,46 @@
 """
-분석 이력(CEO·에이전트 의견) SQLite 저장 및 성과 요약.
+분석 이력(CEO·에이전트 의견) 저장 및 성과 요약.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import sqlite3
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
 from backend.agents.models import CEOReport
 from backend.data import finance_data
+from backend.storage.db import (
+    connect,
+    execute,
+    inserted_id,
+    is_postgresql,
+    primary_key_sql,
+    row_to_dict,
+)
 
 logger = logging.getLogger(__name__)
 
 
-def _default_db_path() -> Path:
-    """프로젝트 루트 ``data/analysis_history.db`` 경로."""
-    root = Path(__file__).resolve().parents[2]
-    return root / "data" / "analysis_history.db"
-
-
-def get_db_path() -> Path:
-    """환경변수 ``ANALYSIS_DB_PATH`` 가 있으면 우선, 없으면 기본 경로."""
-    import os
-
-    raw = os.getenv("ANALYSIS_DB_PATH", "").strip()
-    return Path(raw) if raw else _default_db_path()
-
-
-def _connect() -> sqlite3.Connection:
-    path = get_db_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
+def _connect() -> Any:
+    """분석 이력 저장소 연결을 생성합니다."""
+    return connect("analysis_history.db", sqlite_env_var="ANALYSIS_DB_PATH")
 
 
 def init_analysis_db() -> None:
     """분석 이력 테이블을 생성합니다 (멱등)."""
     conn = _connect()
     try:
-        conn.execute(
-            """
+        pk_sql = primary_key_sql()
+        execute(
+            conn,
+            f"""
             CREATE TABLE IF NOT EXISTS analysis_record (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              id {pk_sql},
               ticker TEXT NOT NULL,
               analyzed_at TEXT NOT NULL,
               ref_price REAL,
@@ -64,7 +55,8 @@ def init_analysis_db() -> None:
             );
             """
         )
-        conn.execute(
+        execute(
+            conn,
             """
             CREATE INDEX IF NOT EXISTS idx_analysis_ticker_time
             ON analysis_record (ticker, analyzed_at DESC);
@@ -137,13 +129,17 @@ def insert_analysis_record(report: CEOReport, ref_price: float | None = None) ->
     analyzed_at = report.timestamp.isoformat()
     conn = _connect()
     try:
-        cur = conn.execute(
-            """
+        insert_sql = """
             INSERT INTO analysis_record (
               ticker, analyzed_at, ref_price, final_opinion,
               buy_pct, neutral_pct, sell_pct, report_json
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
+            """
+        if is_postgresql():
+            insert_sql += " RETURNING id"
+        cur = execute(
+            conn,
+            insert_sql,
             (
                 report.ticker,
                 analyzed_at,
@@ -155,8 +151,9 @@ def insert_analysis_record(report: CEOReport, ref_price: float | None = None) ->
                 json.dumps(payload, ensure_ascii=False),
             ),
         )
+        row = cur.fetchone() if is_postgresql() else None
         conn.commit()
-        return int(cur.lastrowid or 0)
+        return inserted_id(cur, row)
     finally:
         conn.close()
 
@@ -167,8 +164,9 @@ def save_ceo_report_blocking(report: CEOReport) -> int:
     return insert_analysis_record(report, ref)
 
 
-def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
-    return {k: row[k] for k in row.keys()}
+def _row_to_dict(row: Any) -> dict[str, Any]:
+    """DB 행 객체를 API 응답용 딕셔너리로 변환합니다."""
+    return row_to_dict(row)
 
 
 def list_recent_records(limit: int = 50) -> list[dict[str, Any]]:
@@ -176,7 +174,8 @@ def list_recent_records(limit: int = 50) -> list[dict[str, Any]]:
     init_analysis_db()
     conn = _connect()
     try:
-        cur = conn.execute(
+        cur = execute(
+            conn,
             """
             SELECT id, ticker, analyzed_at, ref_price, final_opinion,
                    return_30d, return_60d, return_90d
@@ -196,7 +195,8 @@ def list_records_for_ticker(ticker: str, limit: int = 30) -> list[dict[str, Any]
     init_analysis_db()
     conn = _connect()
     try:
-        cur = conn.execute(
+        cur = execute(
+            conn,
             """
             SELECT id, ticker, analyzed_at, ref_price, final_opinion,
                    return_30d, return_60d, return_90d
@@ -212,7 +212,7 @@ def list_records_for_ticker(ticker: str, limit: int = 30) -> list[dict[str, Any]
         conn.close()
 
 
-def _maybe_fill_forward_returns(row: sqlite3.Row) -> sqlite3.Row:
+def _maybe_fill_forward_returns(row: Any) -> Any:
     """선행 수익률 컬럼이 비어 있으면 채웁니다."""
     need = (
         row["return_30d"] is None
@@ -239,7 +239,8 @@ def _maybe_fill_forward_returns(row: sqlite3.Row) -> sqlite3.Row:
 
     conn = _connect()
     try:
-        conn.execute(
+        execute(
+            conn,
             """
             UPDATE analysis_record
             SET return_30d = COALESCE(?, return_30d),
@@ -250,7 +251,7 @@ def _maybe_fill_forward_returns(row: sqlite3.Row) -> sqlite3.Row:
             (r30, r60, r90, row["id"]),
         )
         conn.commit()
-        cur = conn.execute("SELECT * FROM analysis_record WHERE id = ?", (row["id"],))
+        cur = execute(conn, "SELECT * FROM analysis_record WHERE id = ?", (row["id"],))
         updated = cur.fetchone()
         return updated or row
     finally:
@@ -303,7 +304,7 @@ def compute_backtest_summary(
 
     conn = _connect()
     try:
-        raw_rows = conn.execute("SELECT * FROM analysis_record ORDER BY analyzed_at ASC").fetchall()
+        raw_rows = execute(conn, "SELECT * FROM analysis_record ORDER BY analyzed_at ASC").fetchall()
     finally:
         conn.close()
 
@@ -414,7 +415,7 @@ def compute_agent_performance(
 
     conn = _connect()
     try:
-        rows = conn.execute("SELECT * FROM analysis_record ORDER BY analyzed_at ASC").fetchall()
+        rows = execute(conn, "SELECT * FROM analysis_record ORDER BY analyzed_at ASC").fetchall()
     finally:
         conn.close()
 

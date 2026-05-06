@@ -188,7 +188,7 @@ async def analyze_ticker(
     ticker: str,
     persist: bool = Query(
         True,
-        description="true면 분석 결과를 SQLite 이력(DB)에 저장합니다.",
+        description="true면 분석 결과를 설정된 저장소(DB)에 저장합니다.",
     ),
     use_stats_weights: bool = Query(
         True,

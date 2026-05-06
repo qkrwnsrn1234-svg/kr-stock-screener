@@ -9,9 +9,9 @@
 
 **현재 Phase**: Phase 4 고도화 진행 중
 **현재 브랜치**: feature/phase4-scheduler-docker
-**다음 할 일**: PostgreSQL 이관 검토 및 SQLite 저장소 추상화
+**다음 할 일**: PostgreSQL 클라우드 호스팅 또는 CI/CD 연결(Phase 4 잔여)
 **최종 배포 목표**: Phase 5 — pywebview + PyInstaller로 macOS .app / Windows .exe 패키징
-**마지막 커밋**: Phase 2 품질 개선(BUG-1/2/3 수정 + GAP-1/2/3/4 연동)
+**마지막 커밋**: PostgreSQL Compose·SQLite→PG 마이그레이션 스크립트 추가
 
 ---
 
@@ -279,8 +279,11 @@
 - [x] 실시간 데이터 업데이트 — 백그라운드 스케줄러(`SCHEDULER_ENABLED`, `SCHEDULER_INTERVAL_SECONDS`), KRX 상장목록 캐시 워밍, `GET /system/scheduler`
 - [x] 과열/저평가 감지 시 알림 — Slack 호환 `ALERT_WEBHOOK_URL`, 선택 `SMTP` (`/analyze`·`/screen`의 `send_alerts`, `GET /system/alerts`)
 - [x] 백테스트 결과 대시보드
-- [ ] PostgreSQL 이관
-- [x] Docker — `Dockerfile` + `docker-compose.yml` (`./data` 볼륨, API 단일 서비스)
+- [x] PostgreSQL 이관
+  - [x] PostgreSQL 이관 검토 및 SQLite 저장소 추상화 — `backend/storage/db.py`, `DATABASE_URL`, `psycopg`
+  - [x] 기존 SQLite 데이터 → PostgreSQL 마이그레이션 스크립트 — `backend/scripts/migrate_sqlite_to_postgres.py`
+  - [x] Docker Compose PostgreSQL 서비스 분리 — `docker compose --profile postgres` 의 `db` 서비스, `.env.example` 변수 안내
+- [x] Docker — `Dockerfile` + `docker-compose.yml` (`./data` 볼륨, API + 선택 `db` 프로필)
 - [ ] 클라우드 배포 (CI/CD, 호스팅)
 
 ---

@@ -1,8 +1,30 @@
 # 로컬·단일 호스트 실행용 (API + 영속 데이터 볼륨)
-# 사용: docker compose up --build
+# SQLite 기본: DATABASE_URL 비움 → /app/data/*.db
+# PostgreSQL: db 서비스를 띄운 뒤 DATABASE_URL 에 postgresql://...@db:5432/ 지정
+#   docker compose --profile postgres up -d db
+#   DATABASE_URL 설정 후 동일 디렉터리에서 docker compose up --build
 # API: http://127.0.0.1:8000  문서: /docs
 
 services:
+  db:
+    profiles: ["postgres"]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-krstock}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-krstock}
+      POSTGRES_DB: ${POSTGRES_DB:-krstock}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-krstock} -d ${POSTGRES_DB:-krstock}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 15s
+
   api:
     build: .
     ports:
@@ -15,6 +37,11 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       DART_API_KEY: ${DART_API_KEY:-}
       ECOS_API_KEY: ${ECOS_API_KEY:-}
+      # 비워두면 SQLite(/app/data/*.db), postgresql://... 이면 PostgreSQL 사용
+      DATABASE_URL: ${DATABASE_URL:-}
     volumes:
       # SQLite·디스크 캐시 영속화 (호스트 ./data 와 공유)
       - ./data:/app/data
+
+volumes:
+  postgres_data:
