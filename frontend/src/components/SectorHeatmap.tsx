@@ -24,14 +24,14 @@ export function SectorHeatmap({ items }: Props) {
     >
       {items.map((item) => {
         const intensity = item.strength_score / maxS;
-        const bg = `rgba(35, 134, 54, ${0.15 + intensity * 0.55})`;
+        const bg = `color-mix(in srgb, var(--color-buy) ${20 + intensity * 55}%, var(--color-bg-surface))`;
         return (
           <div
             key={item.sector_name + item.representative_ticker}
             style={{
               background: bg,
-              border: "1px solid #30363d",
-              borderRadius: 8,
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-card)",
               padding: "0.65rem 0.75rem",
               minHeight: 88,
             }}

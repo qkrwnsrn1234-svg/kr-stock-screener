@@ -28,9 +28,25 @@ export function Layout() {
           ))}
         </ul>
       </nav>
-      <main className="app-main">
-        <Outlet />
-      </main>
+      <div className="app-content">
+        <header className="global-header">
+          <label className="global-search">
+            <span className="muted" style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.8rem" }}>
+              종목 검색
+            </span>
+            <input
+              type="search"
+              className="global-search-input"
+              placeholder="종목명 또는 6자리 코드 · 자동완성 연동 예정"
+              autoComplete="off"
+              aria-label="종목 검색"
+            />
+          </label>
+        </header>
+        <main className="app-main">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

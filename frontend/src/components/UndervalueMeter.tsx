@@ -17,10 +17,10 @@ export function UndervalueMeter({ score, breakdown }: Props) {
         style={{
           position: "relative",
           height: 28,
-          background: "#21262d",
-          borderRadius: 8,
+          background: "var(--color-bg-elevated)",
+          borderRadius: "var(--radius-card)",
           overflow: "hidden",
-          border: "1px solid #30363d",
+          border: "1px solid var(--color-border)",
         }}
       >
         <div
@@ -29,10 +29,10 @@ export function UndervalueMeter({ score, breakdown }: Props) {
             height: "100%",
             background:
               clamped >= 70
-                ? "linear-gradient(90deg, #238636, #3fb950)"
+                ? "linear-gradient(90deg, color-mix(in srgb, var(--color-buy) 75%, black), var(--color-buy))"
                 : clamped >= 40
-                  ? "linear-gradient(90deg, #9e6a03, #d29922)"
-                  : "linear-gradient(90deg, #8b949e, #c9d1d9)",
+                  ? "linear-gradient(90deg, color-mix(in srgb, var(--color-hold) 55%, black), var(--color-hold))"
+                  : "linear-gradient(90deg, var(--color-text-secondary), var(--color-text-nav))",
             transition: "width 0.4s ease",
           }}
         />

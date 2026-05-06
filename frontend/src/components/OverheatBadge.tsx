@@ -6,11 +6,28 @@ interface Props {
   flag?: boolean;
 }
 
+/** 과열 등급별 스타일 — index.css 디자인 토큰과 동기화 */
 const levelTone: Record<string, { bg: string; color: string; border: string }> = {
-  정상: { bg: "#23863622", color: "#3fb950", border: "#23863655" },
-  주의: { bg: "#d2992222", color: "#e3b341", border: "#d2992255" },
-  경고: { bg: "#db6d2822", color: "#ffa657ff", border: "#db6d2855" },
-  위험: { bg: "#f8514922", color: "#ff7b72", border: "#f8514955" },
+  정상: {
+    bg: "var(--color-overheat-ok-bg)",
+    color: "var(--color-overheat-ok)",
+    border: "var(--color-overheat-ok-border)",
+  },
+  주의: {
+    bg: "var(--color-overheat-caution-bg)",
+    color: "var(--color-overheat-caution)",
+    border: "var(--color-overheat-caution-border)",
+  },
+  경고: {
+    bg: "var(--color-overheat-warn-bg)",
+    color: "var(--color-overheat-warn)",
+    border: "var(--color-overheat-warn-border)",
+  },
+  위험: {
+    bg: "var(--color-overheat-danger-bg)",
+    color: "var(--color-overheat-danger)",
+    border: "var(--color-overheat-danger-border)",
+  },
 };
 
 /**
@@ -28,7 +45,7 @@ export function OverheatBadge({ alert, flag }: Props) {
         alignItems: "center",
         gap: "0.5rem",
         padding: "0.35rem 0.75rem",
-        borderRadius: 999,
+        borderRadius: "var(--radius-pill)",
         background: tone.bg,
         color: tone.color,
         border: `1px solid ${tone.border}`,

@@ -5,7 +5,8 @@ interface Props {
   report: CEOReport;
 }
 
-const COLORS = ["#3fb950", "#d29922", "#f85149"];
+/** 매수·중립·매도 — 디자인 토큰과 동일 팔레트 */
+const COLORS = ["var(--color-buy)", "var(--color-hold)", "var(--color-sell)"];
 
 /**
  * CEO 매수/중립/매도 비중 파이 차트

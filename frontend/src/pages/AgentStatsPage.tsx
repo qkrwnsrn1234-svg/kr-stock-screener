@@ -97,19 +97,22 @@ export function AgentStatsPage() {
           <div style={{ width: "100%", height: 320 }}>
             <ResponsiveContainer>
               <BarChart data={chartData} layout="vertical" margin={{ left: 12, right: 24 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#30363d" />
-                <XAxis type="number" domain={[0, 100]} tick={{ fill: "#8b949e", fontSize: 12 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis type="number" domain={[0, 100]} tick={{ fill: "var(--color-text-secondary)", fontSize: 12 }} />
                 <YAxis
                   type="category"
                   dataKey="name"
                   width={100}
-                  tick={{ fill: "#8b949e", fontSize: 11 }}
+                  tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }}
                 />
                 <Tooltip
                   formatter={(v: number) => [`${v.toFixed(1)}%`, "적중률"]}
-                  contentStyle={{ background: "#161b22", border: "1px solid #30363d" }}
+                  contentStyle={{
+                    background: "var(--color-bg-surface)",
+                    border: "1px solid var(--color-border)",
+                  }}
                 />
-                <Bar dataKey="rate" fill="#58a6ff" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="rate" fill="var(--color-accent)" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -121,7 +124,7 @@ export function AgentStatsPage() {
           <h2>최근 분석 이력</h2>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
             <thead>
-              <tr style={{ textAlign: "left", borderBottom: "1px solid #30363d" }}>
+              <tr style={{ textAlign: "left", borderBottom: "1px solid var(--color-border)" }}>
                 <th style={{ padding: "0.5rem" }}>일시</th>
                 <th>종목</th>
                 <th>CEO</th>
@@ -132,7 +135,7 @@ export function AgentStatsPage() {
             </thead>
             <tbody>
               {history.map((row) => (
-                <tr key={row.id} style={{ borderBottom: "1px solid #21262d" }}>
+                <tr key={row.id} style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
                   <td style={{ padding: "0.45rem", whiteSpace: "nowrap" }}>{row.analyzed_at}</td>
                   <td>{row.ticker}</td>
                   <td>{row.final_opinion ?? "—"}</td>

@@ -1,9 +1,62 @@
+/**
+ * =============================================================================
+ * KR Stock Screener — 디자인 토큰 (Phase 3-0)
+ * =============================================================================
+ * 컨셉: 다크 블룸버그 터미널 — 정보 밀도 높은 데스크톱 전용(최소 너비 1280px).
+ * 배경/카드/보더는 고정 팔레트, 의미(매수·매도·과열 등)는 시맨틱 색상만 사용.
+ * =============================================================================
+ */
 :root {
-  font-family: "Pretendard Variable", "Apple SD Gothic Neo", system-ui, sans-serif;
+  /* ——— 표면 ——— */
+  --color-bg-page: #0d1117;
+  --color-bg-surface: #161b22;
+  --color-bg-elevated: #21262d;
+  --color-border: #30363d;
+  --color-border-subtle: #21262d;
+
+  /* ——— 텍스트 ——— */
+  --color-text-primary: #e8edf5;
+  --color-text-secondary: #8b949e;
+  --color-text-nav: #c9d1d9;
+
+  /* ——— 시맨틱 (ROADMAP 3-0) ——— */
+  --color-buy: #22c55e;
+  --color-sell: #ef4444;
+  --color-hold: #f59e0b;
+  --color-up: #22c55e;
+  --color-down: #ef4444;
+  --color-warning: #f97316;
+  --color-danger: #ef4444;
+  --color-accent: #3b82f6;
+
+  /* ——— 과열 배지 단계 (정상 → 위험) ——— */
+  --color-overheat-ok: #22c55e;
+  --color-overheat-caution: #f59e0b;
+  --color-overheat-warn: #f97316;
+  --color-overheat-danger: #ef4444;
+  --color-overheat-ok-bg: rgba(34, 197, 94, 0.14);
+  --color-overheat-ok-border: rgba(34, 197, 94, 0.45);
+  --color-overheat-caution-bg: rgba(245, 158, 11, 0.14);
+  --color-overheat-caution-border: rgba(245, 158, 11, 0.45);
+  --color-overheat-warn-bg: rgba(249, 115, 22, 0.14);
+  --color-overheat-warn-border: rgba(249, 115, 22, 0.45);
+  --color-overheat-danger-bg: rgba(239, 68, 68, 0.14);
+  --color-overheat-danger-border: rgba(239, 68, 68, 0.45);
+
+  /* ——— 레이아웃·타이포 · 컴포넌트 수치 ——— */
+  --radius-card: 8px;
+  --radius-control: 6px;
+  --radius-pill: 999px;
+  --width-sidebar: 220px;
+  --width-min-app: 1280px;
+  --font-sans: "Pretendard Variable", "Apple SD Gothic Neo", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "Menlo", monospace;
+
+  font-family: var(--font-sans);
   line-height: 1.5;
   font-weight: 400;
-  color: #e8edf5;
-  background-color: #0d1117;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-page);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -15,13 +68,18 @@
   box-sizing: border-box;
 }
 
+html {
+  min-width: var(--width-min-app);
+}
+
 body {
   margin: 0;
   min-height: 100vh;
+  min-width: var(--width-min-app);
 }
 
 a {
-  color: #7dd3fc;
+  color: var(--color-accent);
   text-decoration: none;
 }
 
@@ -35,4 +93,18 @@ a:hover {
 
 button {
   font-family: inherit;
+}
+
+/* 숫자 열·수익률 등 고정폭 숫자 */
+.font-tabular {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+
+.text-positive {
+  color: var(--color-up);
+}
+
+.text-negative {
+  color: var(--color-down);
 }

@@ -80,7 +80,7 @@ export function AnalyzePage() {
                 </ul>
               ) : null}
               {report.risk_rebuttal ? (
-                <p style={{ marginTop: "1rem", color: "#ffa657" }}>
+                <p style={{ marginTop: "1rem", color: "var(--color-warning)" }}>
                   <strong>리스크 반론:</strong> {report.risk_rebuttal}
                 </p>
               ) : null}
@@ -103,9 +103,9 @@ export function AnalyzePage() {
                     style={{
                       fontSize: "0.75rem",
                       overflow: "auto",
-                      background: "#0d1117",
+                      background: "var(--color-bg-page)",
                       padding: "0.5rem",
-                      borderRadius: 6,
+                      borderRadius: "var(--radius-control)",
                     }}
                   >
                     {JSON.stringify(a.signals, null, 2)}

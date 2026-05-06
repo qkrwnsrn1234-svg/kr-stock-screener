@@ -58,7 +58,7 @@ export function DashboardPage() {
         {err ? (
           <p className="error">
             {err} — uvicorn을 띄운 뒤 다시 시도하세요. (예:{" "}
-            <code style={{ color: "#79c0ff" }}>uvicorn backend.main:app --reload</code>)
+            <code style={{ color: "var(--color-accent)" }}>uvicorn backend.main:app --reload</code>)
           </p>
         ) : (
           <p className="muted" style={{ margin: 0 }}>
