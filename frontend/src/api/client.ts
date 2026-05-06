@@ -1,10 +1,15 @@
 import type {
   AgentPerformanceSummary,
   AnalysisHistoryItem,
+  BacktestSummary,
   CEOReport,
   HotSectorsReport,
   PortfolioAdvice,
+  SearchResults,
   ScreeningResult,
+  WatchlistAddRequest,
+  WatchlistItem,
+  WatchlistSummaryItem,
 } from "@/types/api";
 
 /**
@@ -30,6 +35,9 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
       /* ignore */
     }
     throw new Error(detail || `HTTP ${res.status}`);
+  }
+  if (res.status === 204) {
+    return undefined as T;
   }
   return res.json() as Promise<T>;
 }
@@ -66,6 +74,14 @@ export async function getHotSectors(pool = 12, top = 5): Promise<HotSectorsRepor
   return fetchJson(`/sector/hot?${p.toString()}`);
 }
 
+export async function searchSymbols(q: string, limit = 8): Promise<SearchResults> {
+  const p = new URLSearchParams({
+    q,
+    limit: String(limit),
+  });
+  return fetchJson(`/search?${p.toString()}`);
+}
+
 export async function getPortfolioAdvice(
   holdings: string,
   focus?: string
@@ -85,4 +101,35 @@ export async function getAgentsStats(
 export async function getRecentReports(limit = 50): Promise<AnalysisHistoryItem[]> {
   const p = new URLSearchParams({ limit: String(limit) });
   return fetchJson(`/reports/recent?${p.toString()}`);
+}
+
+export async function getBacktestSummary(
+  horizon: 30 | 60 | 90 = 30,
+  limit = 100
+): Promise<BacktestSummary> {
+  const p = new URLSearchParams({
+    horizon: String(horizon),
+    limit: String(limit),
+  });
+  return fetchJson(`/backtest/summary?${p.toString()}`);
+}
+
+export async function getWatchlistSummary(): Promise<WatchlistSummaryItem[]> {
+  return fetchJson("/watchlist/summary");
+}
+
+export async function addWatchlistItem(body: WatchlistAddRequest): Promise<WatchlistItem> {
+  return fetchJson("/watchlist", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+export async function removeWatchlistItem(ticker: string): Promise<void> {
+  await fetchJson<void>(`/watchlist/${encodeURIComponent(ticker)}`, {
+    method: "DELETE",
+  });
 }

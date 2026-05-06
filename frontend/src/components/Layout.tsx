@@ -1,12 +1,15 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import "../App.css";
 
 const links = [
   { to: "/", label: "대시보드" },
   { to: "/analyze", label: "종목 분석" },
   { to: "/screen", label: "스크리닝" },
+  { to: "/watchlist", label: "관심 종목" },
   { to: "/sectors", label: "주도 섹터" },
   { to: "/agents", label: "에이전트 성적표" },
+  { to: "/backtest", label: "백테스트" },
   { to: "/portfolio", label: "포트폴리오" },
 ];
 
@@ -30,18 +33,7 @@ export function Layout() {
       </nav>
       <div className="app-content">
         <header className="global-header">
-          <label className="global-search">
-            <span className="muted" style={{ display: "block", marginBottom: "0.35rem", fontSize: "0.8rem" }}>
-              종목 검색
-            </span>
-            <input
-              type="search"
-              className="global-search-input"
-              placeholder="종목명 또는 6자리 코드 · 자동완성 연동 예정"
-              autoComplete="off"
-              aria-label="종목 검색"
-            />
-          </label>
+          <GlobalSearch />
         </header>
         <main className="app-main">
           <Outlet />

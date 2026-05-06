@@ -7,9 +7,9 @@
 
 ## 📍 현재 작업 위치 (항상 여기를 먼저 확인)
 
-**현재 Phase**: Phase 2 품질 개선 진행 중 (버그 수정 → Phase 3 UI 마무리)
+**현재 Phase**: Phase 4 고도화 진행 중
 **현재 브랜치**: feature/phase4-scheduler-docker
-**다음 할 일**: Phase 3-1 글로벌 검색바(백엔드 GET /search?q= 엔드포인트 + 프론트 자동완성) 구현
+**다음 할 일**: PostgreSQL 이관 검토 및 SQLite 저장소 추상화
 **최종 배포 목표**: Phase 5 — pywebview + PyInstaller로 macOS .app / Windows .exe 패키징
 **마지막 커밋**: Phase 2 품질 개선(BUG-1/2/3 수정 + GAP-1/2/3/4 연동)
 
@@ -139,7 +139,7 @@
 - [x] GET /screen — 다종목 스크리닝 (사용자가 직접 종목코드 입력, 최대 8개)
 - [x] GET /portfolio/advice — 포트폴리오 조언
 - [x] GET /sector/hot — 현재 주도 섹터
-- [ ] GET /search?q= — 종목명·코드 검색 API (예: "삼성전자" → 005930 자동완성용)
+- [x] GET /search?q= — 종목명·코드 검색 API (예: "삼성전자" → 005930 자동완성용)
 
 ---
 
@@ -215,7 +215,7 @@
 #### [GAP-4] 관심 종목이 프론트 LocalStorage에만 저장
 - [x] 백엔드 SQLite에 watchlist 테이블 추가 → `GET/POST/DELETE /watchlist` 엔드포인트
       — 파일: `backend/storage/watchlist.py` (신규), `backend/main.py` 라우터 추가
-- [ ] 프론트 Watchlist 탭에서 백엔드 API 연동 (Phase 3-2 선행 작업)
+- [x] 프론트 Watchlist 탭에서 백엔드 API 연동 (Phase 3-2 선행 작업)
 
 ---
 
@@ -250,17 +250,17 @@
 
 ### 3-1. 글로벌 검색 & 종목 탐색
 - [x] React + TypeScript 초기 세팅 (Vite, `/api` 프록시 → 백엔드 8000)
-- [ ] **글로벌 검색바** — 종목명 또는 6자리 코드 입력 → 자동완성
+- [x] **글로벌 검색바** — 종목명 또는 6자리 코드 입력 → 자동완성
       — 백엔드 `GET /search?q=` 엔드포인트 연동 (Phase 1-5 신규 항목)
       — 입력 디바운스(300ms) 적용
-- [ ] **최근 검색 히스토리** — LocalStorage 저장, 최대 10개
-- [ ] **검색 → 분석 페이지 이동** — 결과 클릭 시 `/analyze/{ticker}` 페이지로 라우팅
+- [x] **최근 검색 히스토리** — LocalStorage 저장, 최대 10개
+- [x] **검색 → 분석 페이지 이동** — 결과 클릭 시 `/analyze/{ticker}` 페이지로 라우팅
 
 ### 3-2. 관심 종목 탭 (Watchlist)
-- [ ] **관심 종목 저장** — 백엔드 SQLite 저장 (Phase 2 [GAP-4] 선행 필요)
+- [x] **관심 종목 저장** — 백엔드 SQLite 저장 (Phase 2 [GAP-4] 선행 필요)
       — 데스크톱 앱 재설치 후에도 유지
-- [ ] **관심 종목 목록 화면** — 종목명, 현재가, 등락률, 언더밸류 스코어, 과열 배지 한눈에 표시
-- [ ] **빠른 분석 버튼** — 관심 종목에서 바로 AI 분석 실행
+- [x] **관심 종목 목록 화면** — 종목명, 현재가, 등락률, 언더밸류 스코어, 과열 배지 한눈에 표시
+- [x] **빠른 분석 버튼** — 관심 종목에서 바로 AI 분석 실행
 - [ ] **그룹 기능** (선택) — "성장주", "배당주" 등 사용자 태그 분류
 
 ### 3-3. 기존 화면 디자인 시스템 적용
@@ -278,7 +278,7 @@
 
 - [x] 실시간 데이터 업데이트 — 백그라운드 스케줄러(`SCHEDULER_ENABLED`, `SCHEDULER_INTERVAL_SECONDS`), KRX 상장목록 캐시 워밍, `GET /system/scheduler`
 - [x] 과열/저평가 감지 시 알림 — Slack 호환 `ALERT_WEBHOOK_URL`, 선택 `SMTP` (`/analyze`·`/screen`의 `send_alerts`, `GET /system/alerts`)
-- [ ] 백테스트 결과 대시보드
+- [x] 백테스트 결과 대시보드
 - [ ] PostgreSQL 이관
 - [x] Docker — `Dockerfile` + `docker-compose.yml` (`./data` 볼륨, API 단일 서비스)
 - [ ] 클라우드 배포 (CI/CD, 호스팅)

@@ -203,6 +203,22 @@ class HotSectorsReport(BaseModel):
     timestamp: datetime = Field(default_factory=_utc_now, description="생성 시각(UTC)")
 
 
+class SearchResultItem(BaseModel):
+    """종목 검색 자동완성 단건 응답입니다."""
+
+    ticker: str = Field(..., min_length=6, max_length=6, description="종목코드")
+    name: str = Field(..., description="종목명")
+    market: str | None = Field(default=None, description="시장 구분")
+    sector: str | None = Field(default=None, description="업종/섹터")
+
+
+class SearchResults(BaseModel):
+    """종목 검색 자동완성 응답입니다."""
+
+    items: list[SearchResultItem] = Field(default_factory=list, description="검색 결과")
+    timestamp: datetime = Field(default_factory=_utc_now, description="생성 시각(UTC)")
+
+
 class PortfolioAdvice(BaseModel):
     """
     포트폴리오 단위 조언 결과입니다.
@@ -242,6 +258,42 @@ class AnalysisHistoryItem(BaseModel):
     return_90d: float | None = Field(default=None, description="90거래일 후 수익률(소수)")
 
 
+class BacktestOpinionBucket(BaseModel):
+    """CEO 의견별 백테스트 집계입니다."""
+
+    opinion: str = Field(..., description="CEO 최종 의견")
+    samples: int = Field(..., ge=0, description="평가 표본 수")
+    hit_rate: float | None = Field(default=None, description="방향 적중률")
+    average_return: float | None = Field(default=None, description="평균 선행 수익률")
+
+
+class BacktestRecordItem(BaseModel):
+    """백테스트 평가에 포함된 개별 분석 이력입니다."""
+
+    id: int = Field(..., ge=1)
+    ticker: str = Field(..., min_length=6, max_length=6)
+    analyzed_at: str = Field(..., description="분석 시각 ISO8601")
+    final_opinion: str = Field(..., description="CEO 최종 의견")
+    ref_price: float | None = Field(default=None, description="분석 시점 기준가")
+    forward_return: float = Field(..., description="선택 horizon의 선행 수익률")
+    hit: bool = Field(..., description="방향 적중 여부")
+    equity_curve: float = Field(..., description="동일 비중 누적 수익 곡선")
+
+
+class BacktestSummary(BaseModel):
+    """저장된 분석 이력 기반 백테스트 요약입니다."""
+
+    horizon_trading_days: int = Field(..., description="평가 거래일 수")
+    total_records: int = Field(..., ge=0, description="전체 저장 이력 수")
+    evaluated_records: int = Field(..., ge=0, description="수익률 평가 완료 이력 수")
+    hit_rate: float | None = Field(default=None, description="전체 방향 적중률")
+    average_return: float | None = Field(default=None, description="평균 선행 수익률")
+    cumulative_return: float | None = Field(default=None, description="동일 비중 누적 수익률")
+    by_opinion: list[BacktestOpinionBucket] = Field(default_factory=list)
+    records: list[BacktestRecordItem] = Field(default_factory=list)
+    timestamp: str = Field(..., description="응답 생성 시각 ISO(UTC)")
+
+
 class AgentStatRow(BaseModel):
     """에이전트(또는 CEO) 단위 적중 통계입니다."""
 
@@ -268,6 +320,16 @@ class WatchlistItem(BaseModel):
     ticker: str = Field(..., min_length=6, max_length=6)
     added_at: str = Field(..., description="추가 시각 ISO8601(UTC)")
     memo: str = Field(default="", description="사용자 메모")
+
+
+class WatchlistSummaryItem(WatchlistItem):
+    """관심 종목 화면 표시용 확장 응답입니다."""
+
+    name: str = Field(..., description="종목명")
+    market: str | None = Field(default=None, description="시장 구분")
+    sector: str | None = Field(default=None, description="업종/섹터")
+    current_price: float | None = Field(default=None, description="최근 종가")
+    change_pct: float | None = Field(default=None, description="직전 거래일 대비 등락률")
 
 
 class WatchlistAddRequest(BaseModel):

@@ -269,6 +269,125 @@ def _ceo_hit(opinion: str, ret: float | None) -> bool | None:
     return abs(ret) < 0.04
 
 
+def _normalized_opinion(opinion: str | None) -> str:
+    """자유 서술형 의견을 매수/중립/매도 버킷으로 정규화합니다."""
+    text = (opinion or "중립").replace(" ", "")
+    if "매수" in text:
+        return "매수"
+    if "매도" in text:
+        return "매도"
+    return "중립"
+
+
+def compute_backtest_summary(
+    trading_horizon: int = 30,
+    *,
+    limit: int = 100,
+    fill_missing_returns: bool = True,
+) -> dict[str, Any]:
+    """
+    저장된 CEO 분석 이력 기준으로 단순 방향 백테스트를 계산합니다.
+
+    Args:
+        trading_horizon: 30 / 60 / 90 거래일 중 하나.
+        limit: 응답에 포함할 최근 평가 레코드 최대 개수.
+        fill_missing_returns: 비어 있는 선행 수익률을 가능한 범위에서 채울지 여부.
+
+    Returns:
+        전체 적중률, 평균 수익률, 의견별 집계, 누적 수익 곡선을 담은 딕셔너리.
+    """
+    init_analysis_db()
+    col = {30: "return_30d", 60: "return_60d", 90: "return_90d"}.get(trading_horizon, "return_30d")
+    min_age = {30: 28, 60: 55, 90: 85}.get(trading_horizon, 28)
+    now = datetime.now(timezone.utc)
+
+    conn = _connect()
+    try:
+        raw_rows = conn.execute("SELECT * FROM analysis_record ORDER BY analyzed_at ASC").fetchall()
+    finally:
+        conn.close()
+
+    total_records = len(raw_rows)
+    evaluated: list[dict[str, Any]] = []
+    by_opinion: dict[str, dict[str, Any]] = {}
+    equity = 1.0
+
+    for raw in raw_rows:
+        row = _maybe_fill_forward_returns(raw) if fill_missing_returns else raw
+        as_of = datetime.fromisoformat(str(row["analyzed_at"]).replace("Z", "+00:00"))
+        if now - as_of.replace(tzinfo=timezone.utc) < timedelta(days=min_age):
+            continue
+
+        ret = row[col]
+        if ret is None:
+            continue
+
+        forward_return = float(ret)
+        opinion = _normalized_opinion(row["final_opinion"])
+        hit = _ceo_hit(opinion, forward_return)
+        if hit is None:
+            continue
+
+        equity *= 1.0 + forward_return
+        bucket = by_opinion.setdefault(
+            opinion,
+            {"opinion": opinion, "samples": 0, "hits": 0, "returns": []},
+        )
+        bucket["samples"] += 1
+        bucket["hits"] += 1 if hit else 0
+        bucket["returns"].append(forward_return)
+
+        evaluated.append(
+            {
+                "id": int(row["id"]),
+                "ticker": str(row["ticker"]).zfill(6),
+                "analyzed_at": str(row["analyzed_at"]),
+                "final_opinion": opinion,
+                "ref_price": row["ref_price"],
+                "forward_return": forward_return,
+                "hit": bool(hit),
+                "equity_curve": equity - 1.0,
+            }
+        )
+
+    returns = [float(r["forward_return"]) for r in evaluated]
+    hits = [bool(r["hit"]) for r in evaluated]
+
+    def _avg(values: list[float]) -> float | None:
+        """평균값을 소수 6자리로 정리합니다."""
+        if not values:
+            return None
+        return round(sum(values) / len(values), 6)
+
+    opinion_rows = []
+    for bucket in by_opinion.values():
+        samples = int(bucket["samples"])
+        opinion_rows.append(
+            {
+                "opinion": bucket["opinion"],
+                "samples": samples,
+                "hit_rate": round(float(bucket["hits"]) / samples, 4) if samples else None,
+                "average_return": _avg([float(v) for v in bucket["returns"]]),
+            }
+        )
+    opinion_rows.sort(key=lambda x: x["samples"], reverse=True)
+
+    records = list(reversed(evaluated))[: max(1, min(limit, 300))]
+    records.reverse()
+
+    return {
+        "horizon_trading_days": trading_horizon,
+        "total_records": total_records,
+        "evaluated_records": len(evaluated),
+        "hit_rate": round(sum(1 for h in hits if h) / len(hits), 4) if hits else None,
+        "average_return": _avg(returns),
+        "cumulative_return": round(equity - 1.0, 6) if evaluated else None,
+        "by_opinion": opinion_rows,
+        "records": records,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @dataclass
 class AgentStatAccum:
     hits: int = 0

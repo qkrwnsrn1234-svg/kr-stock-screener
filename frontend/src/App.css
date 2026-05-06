@@ -67,6 +67,13 @@
 .global-search {
   display: block;
   max-width: 420px;
+  position: relative;
+}
+
+.global-search-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
 }
 
 .global-search-input {
@@ -87,6 +94,63 @@
   outline: 2px solid color-mix(in srgb, var(--color-accent) 45%, transparent);
   outline-offset: 1px;
   border-color: var(--color-accent);
+}
+
+.global-search-panel {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  width: min(560px, 80vw);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+}
+
+.global-search-section-title,
+.global-search-empty {
+  padding: 0.65rem 0.85rem;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+}
+
+.global-search-section-title {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+  font-weight: 600;
+}
+
+.global-search-option {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.7rem 0.85rem;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.global-search-option:last-child {
+  border-bottom: 0;
+}
+
+.global-search-option:hover,
+.global-search-option:focus {
+  outline: none;
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+}
+
+.global-search-meta {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
 }
 
 .app-main {
@@ -190,6 +254,48 @@
 .tag-neutral {
   background: color-mix(in srgb, var(--color-hold) 22%, transparent);
   color: var(--color-hold);
+}
+
+.watchlist-table-wrap {
+  overflow-x: auto;
+}
+
+.watchlist-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.watchlist-table th,
+.watchlist-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.watchlist-table th {
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: var(--color-bg-page);
+}
+
+.watchlist-table tbody tr:hover {
+  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+}
+
+.backtest-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.backtest-kpi {
+  margin: 0.35rem 0;
+  font-size: 1.65rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
 /* AI 분석 중 등 스켈레톤 */

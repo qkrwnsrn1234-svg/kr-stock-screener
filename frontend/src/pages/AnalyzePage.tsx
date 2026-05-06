@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
 import { analyzeTicker } from "@/api/client";
 import { ConfidencePie } from "@/components/ConfidencePie";
 import type { CEOReport } from "@/types/api";
@@ -13,13 +14,16 @@ function opinionClass(op: string): string {
  * 단일 종목 분석 + 에이전트 토론(펼침 목록)
  */
 export function AnalyzePage() {
-  const [ticker, setTicker] = useState("005930");
+  const { ticker: routeTicker } = useParams<{ ticker?: string }>();
+  const lastAutoRunTickerRef = useRef<string | null>(null);
+  const [ticker, setTicker] = useState(routeTicker ?? "005930");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [report, setReport] = useState<CEOReport | null>(null);
 
-  const run = async () => {
-    const code = ticker.trim().replace(/\D/g, "").slice(0, 6).padStart(6, "0");
+  const run = useCallback(async (targetTicker?: string) => {
+    const rawTicker = targetTicker ?? ticker;
+    const code = rawTicker.trim().replace(/\D/g, "").slice(0, 6).padStart(6, "0");
     if (code.length !== 6) {
       setErr("6자리 숫자 종목코드를 입력하세요.");
       return;
@@ -35,7 +39,15 @@ export function AnalyzePage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [ticker]);
+
+  useEffect(() => {
+    const code = routeTicker?.trim().replace(/\D/g, "").slice(0, 6).padStart(6, "0");
+    if (!code || code.length !== 6 || lastAutoRunTickerRef.current === code) return;
+    lastAutoRunTickerRef.current = code;
+    setTicker(code);
+    void run(code);
+  }, [routeTicker, run]);
 
   return (
     <>

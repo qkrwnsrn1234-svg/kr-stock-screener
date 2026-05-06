@@ -19,12 +19,15 @@ from backend.agents.financial_agent import FinancialAgent
 from backend.agents.models import (
     AgentPerformanceSummary,
     AnalysisHistoryItem,
+    BacktestSummary,
     CEOReport,
     HotSectorsReport,
     PortfolioAdvice,
+    SearchResults,
     ScreeningResult,
     WatchlistAddRequest,
     WatchlistItem,
+    WatchlistSummaryItem,
 )
 from backend.jobs.background_tasks import (
     scheduler_enabled,
@@ -41,8 +44,11 @@ from backend.notify.alerts import (
     webhook_url,
 )
 from backend.screener.hot_sectors import build_hot_sectors
+from backend.screener.search import search_krx_symbols
 from backend.screener.screening import build_screening_result
+from backend.screener.watchlist_summary import build_watchlist_summary
 from backend.storage.analysis_history import (
+    compute_backtest_summary,
     compute_agent_performance,
     list_recent_records,
     list_records_for_ticker,
@@ -135,6 +141,20 @@ def _normalize_ticker_list(raw: str) -> list[str]:
 async def health() -> dict[str, str]:
     """서버 동작 확인."""
     return {"status": "ok", "timestamp": _utc_now_iso()}
+
+
+@app.get("/search", response_model=SearchResults)
+async def search_symbols(
+    q: str = Query(default="", max_length=40, description="종목명 또는 종목코드 검색어"),
+    limit: int = Query(default=8, ge=1, le=20, description="최대 검색 결과 수"),
+) -> SearchResults:
+    """종목명·종목코드 기반 자동완성 검색 결과를 반환합니다."""
+    try:
+        items = await asyncio.to_thread(search_krx_symbols, q, limit)
+        return SearchResults(items=items)
+    except Exception as exc:
+        logger.exception("종목 검색 실패 q=%s", q)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @app.get("/system/scheduler")
@@ -263,6 +283,25 @@ async def agents_stats(
         return AgentPerformanceSummary(**raw)
     except Exception as exc:
         logger.exception("에이전트 통계 산출 실패")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/backtest/summary", response_model=BacktestSummary)
+async def backtest_summary(
+    horizon: int = Query(30, description="평가 거래일 수(30·60·90)", ge=30, le=90),
+    limit: int = Query(100, description="응답에 포함할 최근 평가 레코드 수", ge=10, le=300),
+) -> BacktestSummary:
+    """저장된 분석 이력 기반 단순 백테스트 요약을 반환합니다."""
+    if horizon not in (30, 60, 90):
+        raise HTTPException(
+            status_code=422,
+            detail="horizon은 30, 60, 90 중 하나여야 합니다.",
+        )
+    try:
+        raw = await asyncio.to_thread(compute_backtest_summary, horizon, limit=limit)
+        return BacktestSummary(**raw)
+    except Exception as exc:
+        logger.exception("백테스트 요약 산출 실패")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
@@ -400,6 +439,20 @@ async def watchlist_list() -> list[WatchlistItem]:
         return [WatchlistItem(**r) for r in rows]
     except Exception as exc:
         logger.exception("관심 종목 조회 실패")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/watchlist/summary", response_model=list[WatchlistSummaryItem])
+async def watchlist_summary() -> list[WatchlistSummaryItem]:
+    """관심 종목 목록에 종목명·최근가·등락률을 붙여 반환합니다."""
+    try:
+        from backend.storage.watchlist import list_tickers
+
+        rows = await asyncio.to_thread(list_tickers)
+        summary_rows = await asyncio.to_thread(build_watchlist_summary, rows)
+        return [WatchlistSummaryItem(**r) for r in summary_rows]
+    except Exception as exc:
+        logger.exception("관심 종목 요약 조회 실패")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 

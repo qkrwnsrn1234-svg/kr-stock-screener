@@ -70,6 +70,18 @@ export interface HotSectorsReport {
   timestamp: string;
 }
 
+export interface SearchResultItem {
+  ticker: string;
+  name: string;
+  market?: string | null;
+  sector?: string | null;
+}
+
+export interface SearchResults {
+  items: SearchResultItem[];
+  timestamp: string;
+}
+
 export interface PortfolioAdvice {
   weight_suggestion: Record<string, number>;
   risk_level: string;
@@ -88,6 +100,36 @@ export interface AnalysisHistoryItem {
   return_90d: number | null;
 }
 
+export interface BacktestOpinionBucket {
+  opinion: string;
+  samples: number;
+  hit_rate: number | null;
+  average_return: number | null;
+}
+
+export interface BacktestRecordItem {
+  id: number;
+  ticker: string;
+  analyzed_at: string;
+  final_opinion: string;
+  ref_price: number | null;
+  forward_return: number;
+  hit: boolean;
+  equity_curve: number;
+}
+
+export interface BacktestSummary {
+  horizon_trading_days: number;
+  total_records: number;
+  evaluated_records: number;
+  hit_rate: number | null;
+  average_return: number | null;
+  cumulative_return: number | null;
+  by_opinion: BacktestOpinionBucket[];
+  records: BacktestRecordItem[];
+  timestamp: string;
+}
+
 export interface AgentStatRow {
   agent_name: string;
   samples: number;
@@ -100,6 +142,14 @@ export interface WatchlistItem {
   ticker: string;
   added_at: string;
   memo: string;
+}
+
+export interface WatchlistSummaryItem extends WatchlistItem {
+  name: string;
+  market?: string | null;
+  sector?: string | null;
+  current_price?: number | null;
+  change_pct?: number | null;
 }
 
 export interface WatchlistAddRequest {
