@@ -9,8 +9,8 @@
 
 **현재 Phase**: Phase 1 — 백엔드 기반 구축
 **현재 브랜치**: main
-**다음 할 일**: Phase 1-5: FastAPI 서버(main.py, /analyze 등)
-**마지막 커밋**: Phase 1-4 에이전트 1차 구현(규칙기반·CEO 병렬)
+**다음 할 일**: Phase 1-4 세부 지표 보강(재무·기술·리스크 등) 또는 Phase 2 스크리닝 고도화
+**마지막 커밋**: Phase 1-5 FastAPI 서버(/analyze, /screen 등)
 
 ---
 
@@ -133,11 +133,11 @@
 - [ ] 에이전트별 발언 전문 보존
 
 ### 1-5. FastAPI 서버 (backend/)
-- [ ] main.py 기본 설정
-- [ ] GET /analyze/{ticker} — 단일 종목 분석
-- [ ] GET /screen — 다종목 스크리닝
-- [ ] GET /portfolio/advice — 포트폴리오 조언
-- [ ] GET /sector/hot — 현재 주도 섹터
+- [x] main.py 기본 설정
+- [x] GET /analyze/{ticker} — 단일 종목 분석
+- [x] GET /screen — 다종목 스크리닝
+- [x] GET /portfolio/advice — 포트폴리오 조언
+- [x] GET /sector/hot — 현재 주도 섹터
 
 ---
 

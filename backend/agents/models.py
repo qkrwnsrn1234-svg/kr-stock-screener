@@ -112,6 +112,34 @@ class CEOReport(BaseModel):
         return lines[:3]
 
 
+class HotSectorItem(BaseModel):
+    """
+    주도 섹터 랭킹의 한 행입니다.
+
+    Attributes:
+        sector_name: 업종·섹터 라벨(상장목록 Dept 등).
+        representative_ticker: 모멘텀 계산에 사용한 대표 종목코드.
+        relative_outperformance_60d: 코스피 대비 60영업일 초과수익률(소수, 예: 0.05는 +5%p).
+        strength_score: 표시용 상대 강도 점수(0~100, 높을수록 상대적으로 강함).
+        summary: 근거 한 줄 요약.
+    """
+
+    sector_name: str = Field(..., description="섹터 이름")
+    representative_ticker: str = Field(..., min_length=6, max_length=6, description="대표 종목코드")
+    relative_outperformance_60d: float | None = Field(
+        default=None, description="벤치 대비 60일 초과수익률(소수)"
+    )
+    strength_score: float = Field(..., ge=0.0, le=100.0, description="상대 강도 점수")
+    summary: str = Field(default="", description="요약 문구")
+
+
+class HotSectorsReport(BaseModel):
+    """시장 전반 관점의 주도 섹터 후보 목록입니다."""
+
+    items: list[HotSectorItem] = Field(default_factory=list, description="섹터 랭킹")
+    timestamp: datetime = Field(default_factory=_utc_now, description="생성 시각(UTC)")
+
+
 class PortfolioAdvice(BaseModel):
     """
     포트폴리오 단위 조언 결과입니다.
