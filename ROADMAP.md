@@ -9,44 +9,8 @@
 
 **현재 Phase**: Phase 1 — 백엔드 기반 구축
 **현재 브랜치**: main
-**다음 할 일**: Phase 1-2: FinanceDataReader 연동 (backend/data/)
-**마지막 커밋**: requirements.txt, .env.example, ROADMAP.md 업데이트
-
----
-
-## Phase 0 — 프로젝트 세팅 ✅ 완료
-
-- [x] Git 초기화 및 사용자 설정
-- [x] .gitignore 생성
-- [x] CLAUDE.md 생성 (Claude Code 컨텍스트)
-- [x] .cursorrules 생성 (Cursor AI 규칙)
-- [x] feature/ 브랜치 전략 수립
-- [x] 전체 폴더 구조 생성
-- [x] ROADMAP.md 작성
-- [x] AI 자동 컨텍스트 로딩 규칙 추가
-
----
-
-## Phase 1 — 백엔드 기반 구축 🔄 진행 중
-
-### 1-1. 환경 세팅 ✅ 완료
--
-git checkout -b feature/roadmap-detail
-git checkout -b feature/roadmap-detail
-cat > ROADMAP.md << 'EOF'
-# KR Stock Screener — 로드맵
-
-## 프로젝트 한 줄 요약
-한국 주식/ETF 대상 AI 멀티에이전트 투자 분석 스크리닝 시스템
-
----
-
-## 📍 현재 작업 위치 (항상 여기를 먼저 확인)
-
-**현재 Phase**: Phase 1 — 백엔드 기반 구축
-**현재 브랜치**: main
-**다음 할 일**: Phase 1-2: FinanceDataReader 연동 (backend/data/)
-**마지막 커밋**: requirements.txt, .env.example, ROADMAP.md 업데이트
+**다음 할 일**: Phase 1-3: 에이전트 공통 기반 (base_agent.py, models.py)
+**마지막 커밋**: Phase 1-2 데이터 모듈(backend/data) 추가
 
 ---
 
@@ -71,11 +35,11 @@ cat > ROADMAP.md << 'EOF'
 - [x] .env / .env.example 생성 (API 키 관리)
 
 ### 1-2. 데이터 수집 모듈 (backend/data/)
-- [ ] finance_data.py — FinanceDataReader 연동 (주가, ETF)
-- [ ] krx_data.py — pykrx 연동 (거래량, 시총, 외국인/기관 매매)
-- [ ] dart_data.py — DART API 연동 (공시, 재무제표)
-- [ ] bok_data.py — 한국은행 API 연동 (금리, 환율, CPI, PMI)
-- [ ] cache.py — 데이터 캐싱 로직 (중복 API 호출 방지)
+- [x] finance_data.py — FinanceDataReader 연동 (주가, ETF)
+- [x] krx_data.py — pykrx 연동 (거래량, 시총, 외국인/기관 매매)
+- [x] dart_data.py — DART API 연동 (공시, 재무제표)
+- [x] bok_data.py — 한국은행 API 연동 (금리, 환율, CPI, PMI)
+- [x] cache.py — 데이터 캐싱 로직 (중복 API 호출 방지)
 
 ### 1-3. 에이전트 공통 기반 (backend/agents/)
 - [ ] base_agent.py — BaseAgent 클래스
