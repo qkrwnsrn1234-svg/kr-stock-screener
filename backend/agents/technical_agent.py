@@ -46,6 +46,14 @@ class TechnicalAgent(BaseAgent):
         obv_val = ti.obv_last(aligned_close, vol_s)
         rs = ti.relative_strength_vs_benchmark(aligned_close, bench_close, days=60)
 
+        # 최근 거래량 / 20일 평균 — 과열·스크리닝 거래량 급등 판별용
+        vol_ratio_ma20: float | None = None
+        if len(vol_s) >= 21:
+            ma20 = float(vol_s.iloc[-20:].mean())
+            last_v = float(vol_s.iloc[-1])
+            if ma20 > 0:
+                vol_ratio_ma20 = last_v / ma20
+
         signals: dict[str, object] = {
             "rsi_14": rsi_v,
             "macd": macd_info,
@@ -54,6 +62,7 @@ class TechnicalAgent(BaseAgent):
             "bollinger": bb,
             "obv_last": obv_val,
             "relative_strength_vs_kospi_60d": rs,
+            "volume_vs_ma20_ratio": vol_ratio_ma20,
         }
 
         score = 0.0

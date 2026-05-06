@@ -42,6 +42,37 @@ class AgentResponse(BaseModel):
     model_config = {"frozen": False}
 
 
+class UndervalueBreakdown(BaseModel):
+    """
+    언더밸류에이션 세부 점수(구성 요소별 0~100, 높을수록 상대적으로 저평가·우량에 가깝게 정의).
+    """
+
+    per_score: float = Field(..., ge=0.0, le=100.0, description="PER·업종 중앙값 대비")
+    pbr_score: float = Field(..., ge=0.0, le=100.0, description="PBR·업종 중앙값 대비")
+    fcf_yield_score: float = Field(
+        ...,
+        ge=0.0,
+        le=100.0,
+        description="FCF Yield (미수집 시 중립 50)",
+    )
+    fscore_score: float = Field(..., ge=0.0, le=100.0, description="Piotroski 근사 점수 반영")
+    combined: float = Field(..., ge=0.0, le=100.0, description="가중 합산 최종 언더밸류")
+    peer_count: int = Field(default=0, ge=0, description="업종 동종 표본 수")
+    sector_label: str | None = Field(default=None, description="업종 라벨(상장목록 Dept)")
+    fcf_note: str = Field(default="", description="FCF 관련 데이터 한 줄 메모")
+
+
+class OverheatAlert(BaseModel):
+    """과열(오버히트) 알럿 등급과 근거입니다."""
+
+    level: str = Field(
+        default="정상",
+        description="정상 | 주의 | 경고 | 위험",
+    )
+    heat_score: float = Field(default=0.0, ge=0.0, le=100.0, description="과열 강도 0~100")
+    reasons: list[str] = Field(default_factory=list, description="트리거 요약")
+
+
 class ScreeningResult(BaseModel):
     """
     단일 종목 스크리닝 결과입니다.
@@ -50,6 +81,8 @@ class ScreeningResult(BaseModel):
         ticker: 종목코드 6자리.
         undervalue_score: 언더밸류 점수 (0~100, 높을수록 저평가 가능성).
         overheat_flag: 과열 여부 (오버히트 알럿용).
+        undervalue_breakdown: 구성 요소별 점수(Phase 2).
+        overheat_alert: 등급·근거(Phase 2).
         agent_reports: 참여 에이전트별 ``AgentResponse`` 목록.
         timestamp: 산출 시각(UTC).
     """
@@ -57,6 +90,10 @@ class ScreeningResult(BaseModel):
     ticker: str = Field(..., min_length=6, max_length=6, description="종목코드")
     undervalue_score: float = Field(default=0.0, ge=0.0, le=100.0, description="저평가 스코어")
     overheat_flag: bool = Field(default=False, description="과열 플래그")
+    undervalue_breakdown: UndervalueBreakdown | None = Field(
+        default=None, description="언더밸류 구성 요소"
+    )
+    overheat_alert: OverheatAlert | None = Field(default=None, description="과열 알럿 상세")
     agent_reports: list[AgentResponse] = Field(default_factory=list, description="에이전트 결과 목록")
     timestamp: datetime = Field(default_factory=_utc_now, description="생성 시각(UTC)")
 

@@ -16,6 +16,7 @@ from backend.agents.ceo_agent import CEOOrchestrator
 from backend.agents.financial_agent import FinancialAgent
 from backend.agents.models import CEOReport, HotSectorsReport, PortfolioAdvice, ScreeningResult
 from backend.screener.hot_sectors import build_hot_sectors
+from backend.screener.screening import build_screening_result
 
 logger = logging.getLogger(__name__)
 
@@ -80,33 +81,6 @@ def _normalize_ticker_list(raw: str) -> list[str]:
     return uniq
 
 
-def _screening_from_ceo(report: CEOReport) -> ScreeningResult:
-    """CEO 보고서를 스크리닝 결과(저평가 스코어·과열 플래그)로 요약합니다."""
-    fin = next((r for r in report.agent_reports if r.agent_name == "재무"), None)
-    quant = next((r for r in report.agent_reports if r.agent_name == "퀀트"), None)
-    tech = next((r for r in report.agent_reports if r.agent_name == "기술적"), None)
-
-    def _norm_score(s: float) -> float:
-        return max(0.0, min(100.0, float(s) + 50.0))
-
-    fs = float(fin.score) if fin else 0.0
-    qs = float(quant.score) if quant else 0.0
-    undervalue = 0.55 * _norm_score(fs) + 0.45 * _norm_score(qs)
-
-    overheat = False
-    if tech and isinstance(tech.signals, dict):
-        rsi_v = tech.signals.get("rsi_14")
-        if rsi_v is not None and float(rsi_v) >= 70.0:
-            overheat = True
-
-    return ScreeningResult(
-        ticker=report.ticker,
-        undervalue_score=undervalue,
-        overheat_flag=overheat,
-        agent_reports=list(report.agent_reports),
-    )
-
-
 @app.get("/health")
 async def health() -> dict[str, str]:
     """서버 동작 확인."""
@@ -155,7 +129,7 @@ async def screen(
     async def _one(code: str) -> ScreeningResult:
         async with sem:
             report = await CEOOrchestrator().run(code)
-            return _screening_from_ceo(report)
+            return await build_screening_result(report)
 
     try:
         return list(await asyncio.gather(*[_one(c) for c in codes]))
