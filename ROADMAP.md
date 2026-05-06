@@ -10,6 +10,7 @@
 **현재 Phase**: Phase 1 — 백엔드 기반 구축
 **현재 브랜치**: main
 **다음 할 일**: Phase 1-4 세부 지표 보강(재무·기술·리스크 등) 또는 Phase 2 스크리닝 고도화
+**최종 배포 목표**: Phase 5 — pywebview + PyInstaller로 macOS .app / Windows .exe 패키징
 **마지막 커밋**: Phase 1-5 FastAPI 서버(/analyze, /screen 등)
 
 ---
@@ -191,6 +192,43 @@
 - [ ] 백테스트 결과 대시보드
 - [ ] PostgreSQL 이관
 - [ ] Docker + 클라우드 배포
+
+---
+
+## Phase 5 — 데스크톱 앱 패키징 (pywebview + PyInstaller)
+
+> 목표: 아이콘 더블클릭 → 앱 실행. macOS `.app` + Windows `.exe` 배포.
+> 기술 선택: pywebview (Python 네이티브 창) + PyInstaller (단일 실행 파일 번들)
+
+### 5-1. 빌드 통합 구조 정비
+- [ ] React 정적 빌드 결과물(`dist/`)을 FastAPI가 서빙하도록 통합
+      — `GET /` → `dist/index.html` 반환, 정적 파일 마운트
+- [ ] 서버 포트 고정 (기본 18000, `.env`로 변경 가능)
+- [ ] 앱 실행 시 사용 가능한 포트 자동 탐색 로직 추가 (포트 충돌 방지)
+
+### 5-2. pywebview 데스크톱 래퍼
+- [ ] `desktop/app.py` 생성
+      — FastAPI 서버를 백그라운드 스레드로 실행
+      — `webview.create_window()` 로 네이티브 창 띄우기
+      — 서버 준비 완료 후 창 오픈 (헬스체크 폴링)
+- [ ] 앱 아이콘 설정 (512×512 PNG → `.icns` / `.ico` 변환)
+- [ ] 창 타이틀, 최소 크기, 리사이즈 옵션 설정
+- [ ] 앱 종료 시 FastAPI 서버 프로세스 정리
+
+### 5-3. PyInstaller 번들링
+- [ ] `desktop/app.spec` 작성
+      — `backend/`, `frontend/dist/` 정적 파일 포함
+      — `.env` 및 데이터 파일 동봉
+      — 숨겨진 import 명시 (pykrx, dart_fss 등)
+- [ ] macOS: `--onefile` 또는 `--onedir` 선택 후 `.app` 번들 생성
+- [ ] Windows: `.exe` + NSIS 인스톨러 생성 (선택)
+- [ ] 번들 크기 최적화 (불필요한 패키지 제외)
+
+### 5-4. 빌드 자동화
+- [ ] `Makefile` 또는 `build.sh` 작성
+      — `make build-mac` → macOS `.app` 생성
+      — `make build-win` → Windows `.exe` 생성
+- [ ] GitHub Actions CI: 태그 푸시 시 자동 빌드 + Releases 업로드 (선택)
 
 ---
 
