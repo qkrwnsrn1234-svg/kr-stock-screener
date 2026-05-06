@@ -70,6 +70,48 @@ class ScreeningResult(BaseModel):
         return s
 
 
+class CEOReport(BaseModel):
+    """
+    CEO 오케스트레이터의 종합 결과입니다.
+
+    Attributes:
+        ticker: 종목코드.
+        final_opinion: 최종 의견(매수/중립/매도 등).
+        buy_pct: 매수 비중 추정(% , 합계 100).
+        neutral_pct: 중립 비중 추정(%).
+        sell_pct: 매도 비중 추정(%).
+        summary_lines: 핵심 근거(최대 3줄).
+        agent_reports: 개별 에이전트 원문 보존.
+        risk_rebuttal: 리스크 에이전트 중심 반론 요약.
+        timestamp: 생성 시각(UTC).
+    """
+
+    ticker: str = Field(..., min_length=6, max_length=6, description="종목코드")
+    final_opinion: str = Field(..., description="최종 투자 의견")
+    buy_pct: float = Field(..., ge=0.0, le=100.0)
+    neutral_pct: float = Field(..., ge=0.0, le=100.0)
+    sell_pct: float = Field(..., ge=0.0, le=100.0)
+    summary_lines: list[str] = Field(default_factory=list, description="핵심 근거(≤3줄)")
+    agent_reports: list[AgentResponse] = Field(default_factory=list)
+    risk_rebuttal: str = Field(default="", description="반론/경고 요약")
+    timestamp: datetime = Field(default_factory=_utc_now, description="생성 시각(UTC)")
+
+    @field_validator("ticker")
+    @classmethod
+    def _ceo_ticker_digits(cls, v: str) -> str:
+        s = v.strip()
+        if not s.isdigit():
+            raise ValueError("종목코드는 숫자 6자리여야 합니다.")
+        return s
+
+    @field_validator("summary_lines")
+    @classmethod
+    def _trim_summary(cls, v: list[str]) -> list[str]:
+        """요약은 최대 3줄로 제한합니다."""
+        lines = [ln.strip() for ln in v if ln.strip()]
+        return lines[:3]
+
+
 class PortfolioAdvice(BaseModel):
     """
     포트폴리오 단위 조언 결과입니다.

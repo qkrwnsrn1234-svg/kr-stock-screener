@@ -9,8 +9,8 @@
 
 **현재 Phase**: Phase 1 — 백엔드 기반 구축
 **현재 브랜치**: main
-**다음 할 일**: Phase 1-4: 각 에이전트 구현 시작 (financial_agent.py 등)
-**마지막 커밋**: Phase 1-3 에이전트 공통 기반(base_agent, models)
+**다음 할 일**: Phase 1-5: FastAPI 서버(main.py, /analyze 등)
+**마지막 커밋**: Phase 1-4 에이전트 1차 구현(규칙기반·CEO 병렬)
 
 ---
 
@@ -52,6 +52,8 @@
       - PortfolioAdvice: {weight_suggestion, risk_level, advice}
 
 ### 1-4. 각 에이전트 구현 (backend/agents/)
+
+**코드 반영(1차):** `financial_agent`, `macro_agent`, `technical_agent`, `risk_agent`, `sector_agent`, `quant_agent`, `advisor_agent`, `ceo_agent`(CEOOrchestrator·CEOReport) 규칙 기반 구현 완료. OHLCV·가능 시 pykrx·ECOS 사용. 아래 세부 지표 체크는 데이터 보강과 함께 단계적으로 진행합니다.
 
 #### 재무제표 분석가 (financial_agent.py)
 담당 지표:
