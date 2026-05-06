@@ -9,8 +9,8 @@
 
 **현재 Phase**: Phase 1 — 백엔드 기반 구축
 **현재 브랜치**: main
-**다음 할 일**: Phase 1-3: 에이전트 공통 기반 (base_agent.py, models.py)
-**마지막 커밋**: Phase 1-2 데이터 모듈(backend/data) 추가
+**다음 할 일**: Phase 1-4: 각 에이전트 구현 시작 (financial_agent.py 등)
+**마지막 커밋**: Phase 1-3 에이전트 공통 기반(base_agent, models)
 
 ---
 
@@ -42,11 +42,11 @@
 - [x] cache.py — 데이터 캐싱 로직 (중복 API 호출 방지)
 
 ### 1-3. 에이전트 공통 기반 (backend/agents/)
-- [ ] base_agent.py — BaseAgent 클래스
+- [x] base_agent.py — BaseAgent 클래스
       - analyze(ticker) → AgentResponse 인터페이스
       - 신뢰도 점수 반환 구조 포함
       - 에이전트 독립 실행 가능 구조
-- [ ] models.py — 공통 데이터 모델
+- [x] models.py — 공통 데이터 모델
       - AgentResponse: {opinion, confidence, score, reasoning, signals}
       - ScreeningResult: {ticker, undervalue_score, overheat_flag, agent_reports}
       - PortfolioAdvice: {weight_suggestion, risk_level, advice}
