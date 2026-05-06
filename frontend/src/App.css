@@ -1,0 +1,149 @@
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-nav {
+  width: 220px;
+  flex-shrink: 0;
+  padding: 1.25rem 1rem;
+  background: #161b22;
+  border-right: 1px solid #30363d;
+}
+
+.app-nav h1 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.app-nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-nav li {
+  margin-bottom: 0.35rem;
+}
+
+.app-nav a {
+  display: block;
+  padding: 0.45rem 0.65rem;
+  border-radius: 6px;
+  color: #c9d1d9;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.app-nav a:hover {
+  background: #21262d;
+  text-decoration: none;
+}
+
+.app-nav a.active {
+  background: #1f6feb33;
+  color: #79c0ff;
+}
+
+.app-main {
+  flex: 1;
+  padding: 1.5rem 2rem;
+  max-width: 1200px;
+}
+
+.card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+}
+
+.muted {
+  color: #8b949e;
+  font-size: 0.875rem;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.input {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #e8edf5;
+  padding: 0.5rem 0.75rem;
+  min-width: 200px;
+}
+
+.btn {
+  background: #238636;
+  border: 1px solid #2ea043;
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #21262d;
+  border-color: #30363d;
+}
+
+.error {
+  color: #f85149;
+  margin-top: 0.5rem;
+}
+
+.agent-list details {
+  margin-bottom: 0.5rem;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  background: #0d1117;
+}
+
+.agent-list summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.tag {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  margin-left: 0.35rem;
+}
+
+.tag-buy {
+  background: #23863644;
+  color: #3fb950;
+}
+
+.tag-sell {
+  background: #f8514944;
+  color: #ff7b72;
+}
+
+.tag-neutral {
+  background: #d2992244;
+  color: #e3b341;
+}
