@@ -7,9 +7,9 @@
 
 ## 📍 현재 작업 위치 (항상 여기를 먼저 확인)
 
-**현재 Phase**: Phase 3 — 디자인 시스템 반영 완료 · Phase 4 병행
+**현재 Phase**: Phase 2 품질 개선 진행 중 (버그 수정 → Phase 3 UI 마무리)
 **현재 브랜치**: feature/phase4-scheduler-docker
-**다음 할 일**: Phase 3-1 글로벌 검색 자동완성·히스토리, Phase 4 백테스트·PostgreSQL·CI
+**다음 할 일**: Phase 2 품질 개선 항목(Claude API 연동·비동기 버그·DART 연동 등) 순차 처리
 **최종 배포 목표**: Phase 5 — pywebview + PyInstaller로 macOS .app / Windows .exe 패키징
 **마지막 커밋**: Phase 3-0 디자인 토큰·글로벌 검색바 레이아웃·컴포넌트 색상 통일
 
@@ -136,9 +136,10 @@
 ### 1-5. FastAPI 서버 (backend/)
 - [x] main.py 기본 설정
 - [x] GET /analyze/{ticker} — 단일 종목 분석
-- [x] GET /screen — 다종목 스크리닝
+- [x] GET /screen — 다종목 스크리닝 (사용자가 직접 종목코드 입력, 최대 8개)
 - [x] GET /portfolio/advice — 포트폴리오 조언
 - [x] GET /sector/hot — 현재 주도 섹터
+- [ ] GET /search?q= — 종목명·코드 검색 API (예: "삼성전자" → 005930 자동완성용)
 
 ---
 
@@ -169,18 +170,48 @@
 - [x] 에이전트별 적중률 통계 (단순 방향 적중 휴리스틱)
 - [x] 가장 신뢰도 높은 에이전트 자동 가중치 조정 (`/analyze` 기본 on, `CEOReport.stats_weights_applied`)
 
-### 자동 스크리닝 파이프라인 (C안 — 룰 기반 필터 → AI 분석)
-> 전 종목을 AI로 돌리면 비용·시간 폭발 → 1차 필터로 후보를 좁힌 뒤 AI 분석
+### 스크리닝 방식 확정
+> 사용자가 종목코드를 직접 입력하는 방식으로 확정 (최대 8개 동시 분석)
+> 전 종목 자동 스크리닝은 pykrx rate limiting·API 비용 문제로 미채택
 
-- [ ] **1차 필터 (pykrx 기반, AI 호출 없음)**
-      — 시가총액 하한 필터 (예: 500억 이상)
-      — 거래량 하한 필터 (20일 평균 대비 0.5배 이상)
-      — PER 범위 필터 (0 초과 ~ 업종 중앙값 3배 이하)
-      — 상장폐지·관리종목 제외
-      — `GET /screen/candidates?market=KOSPI|KOSDAQ&limit=100` 엔드포인트
-- [ ] **2차 AI 분석** — 필터 통과 종목 상위 N개에만 에이전트 파이프라인 실행
-- [ ] **필터 조건 사용자 설정** — `.env` 또는 프론트 설정 화면에서 변경 가능
-- [ ] **결과 정렬** — 언더밸류에이션 스코어 내림차순 기본, 사용자 정렬 변경 가능
+### 품질 개선 — 버그 수정
+
+#### [BUG-1] 비동기 OHLCV 로딩이 순차 실행으로 동작 (TechnicalAgent·RiskAgent)
+- [ ] `await price_task, await bench_task` → `await asyncio.gather(price_task, bench_task)` 로 교체
+      — 종목 OHLCV + 코스피 지수 OHLCV를 진짜 병렬 로딩으로 변경
+      — 파일: `backend/agents/technical_agent.py`, `backend/agents/risk_agent.py`
+
+#### [BUG-2] CEOOrchestrator가 validate_ticker 하나 때문에 FinancialAgent 중복 생성
+- [ ] `validator = FinancialAgent()` 제거 → `BaseAgent().validate_ticker(ticker)` 또는 `self.agents[0].validate_ticker(ticker)` 로 교체
+      — 파일: `backend/agents/ceo_agent.py`
+
+#### [BUG-3] FCF Yield가 언더밸류 스코어에서 항상 50점(중립) 고정
+- [ ] `screening.py`의 `fcf_s = 50.0` 상수 제거 → DART 현금흐름표 연동 후 실제 FCF Yield로 대체
+      — 연동 전까지는 FCF 가중치(W_FCF=0.10)를 PER·PBR에 재분배하거나 점수 계산에서 제외
+
+### 품질 개선 — 기획-구현 갭
+
+#### [GAP-1] Claude API가 한 번도 호출되지 않음 ← 가장 중요
+- [ ] 현재 모든 에이전트는 if문 규칙 기반 휴리스틱 → "AI 멀티에이전트" 컨셉 미구현
+- [ ] **설계 결정 필요**: 어느 에이전트부터 Claude 연동할지 선택
+      — 권장 순서: ① CEO 종합 의견 생성 ② 거시(뉴스·지정학 해석) ③ 재무(자연어 분석)
+- [ ] `ANTHROPIC_API_KEY` 환경변수 연동 확인 (패키지는 이미 설치됨)
+- [ ] 에이전트 내부에서 룰 기반 signals 딕셔너리 → Claude에 컨텍스트로 전달 → 자연어 reasoning 생성 구조
+
+#### [GAP-2] DART 재무데이터가 financial_agent에 연동되지 않음
+- [ ] `dart_data.py`의 `fetch_financial_accounts()` → financial_agent에서 호출
+      — 연결 재무제표(CFS)에서 영업이익, 부채비율, FCF(영업CF - CAPEX) 추출
+      — ROADMAP Phase 1-4 지표 중 PEG, EV/EBITDA, ROIC, FCF Yield, 이자보상배율, DCF 구현 기반
+
+#### [GAP-3] macro_agent의 지정학 리스크가 플레이스홀더
+- [ ] `signals["geopolitical_placeholder"]` 제거
+- [ ] 뉴스 API(네이버 금융 뉴스 크롤링 또는 외부 API) 연동 또는 Claude에 최신 뉴스 요약 위임
+      — Claude 연동 시 "[GAP-1]" 선행 필요
+
+#### [GAP-4] 관심 종목이 프론트 LocalStorage에만 저장
+- [ ] 데스크톱 앱(Phase 5) 재설치 시 관심 종목 유실 문제
+- [ ] 백엔드 SQLite에 watchlist 테이블 추가 → `GET/POST/DELETE /watchlist` 엔드포인트
+      — 파일: `backend/storage/watchlist.py` (신규), `backend/main.py` 라우터 추가
 
 ---
 
@@ -215,22 +246,20 @@
 
 ### 3-1. 글로벌 검색 & 종목 탐색
 - [x] React + TypeScript 초기 세팅 (Vite, `/api` 프록시 → 백엔드 8000)
-- [ ] **글로벌 검색바** — 종목명 또는 6자리 코드 입력 → 자동완성 (KRX 전종목 리스트 기반)
+- [ ] **글로벌 검색바** — 종목명 또는 6자리 코드 입력 → 자동완성
+      — 백엔드 `GET /search?q=` 엔드포인트 연동 (Phase 1-5 신규 항목)
+      — 입력 디바운스(300ms) 적용
 - [ ] **최근 검색 히스토리** — LocalStorage 저장, 최대 10개
+- [ ] **검색 → 분석 페이지 이동** — 결과 클릭 시 `/analyze/{ticker}` 페이지로 라우팅
 
 ### 3-2. 관심 종목 탭 (Watchlist)
-- [ ] **관심 종목 저장** — LocalStorage 기반 (로그인 없이 사용)
+- [ ] **관심 종목 저장** — 백엔드 SQLite 저장 (Phase 2 [GAP-4] 선행 필요)
+      — 데스크톱 앱 재설치 후에도 유지
 - [ ] **관심 종목 목록 화면** — 종목명, 현재가, 등락률, 언더밸류 스코어, 과열 배지 한눈에 표시
 - [ ] **빠른 분석 버튼** — 관심 종목에서 바로 AI 분석 실행
 - [ ] **그룹 기능** (선택) — "성장주", "배당주" 등 사용자 태그 분류
 
-### 3-3. 자동 스크리닝 결과 탭
-- [ ] **필터 조건 설정 패널** — 시장(KOSPI/KOSDAQ/전체), 시총 범위, PER 범위 등
-- [ ] **후보 종목 테이블** — 1차 필터 결과 표시 (AI 분석 전 단계)
-- [ ] **AI 분석 실행 버튼** — 선택 종목 또는 상위 N개에만 실행
-- [ ] **결과 정렬/필터** — 스코어, 시총, 섹터별 정렬
-
-### 3-4. 기존 화면 디자인 시스템 적용
+### 3-3. 기존 화면 디자인 시스템 적용
 - [x] 에이전트 토론 결과 화면 (구현됨 → 디자인 통일 필요)
 - [x] 신뢰도 퍼센트 시각화 (파이차트/게이지)
 - [x] 언더밸류에이션 스코어 미터
@@ -294,7 +323,8 @@
 - DB: SQLite (Phase 1~3) → PostgreSQL (Phase 4)
 - 한국 주식/ETF 위주, 미국 지수는 참고용
 - 에이전트 호출: CEO가 병렬 호출 후 반론 라운드 진행
-- Python: 3.14 (현재 맥 환경), 배포 시 pyenv로 3.11 고정 예정
+- Python: 3.14 (현재 맥 환경) → **⚠️ Phase 5 진입 전 pyenv로 3.11 또는 3.12로 전환 필수**
+  (PyInstaller가 현재 3.12까지만 공식 지원, 3.14는 패키징 실패 가능)
 
 ---
 
