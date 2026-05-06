@@ -49,6 +49,8 @@ export interface CEOReport {
   timestamp: string;
   stats_weights_applied?: boolean;
   agent_weight_multipliers?: Record<string, number>;
+  claude_summary_applied?: boolean;
+  claude_model?: string | null;
 }
 
 export interface HotSectorItem {
@@ -91,6 +93,18 @@ export interface AgentStatRow {
   samples: number;
   hits: number;
   hit_rate: number | null;
+}
+
+export interface WatchlistItem {
+  id: number;
+  ticker: string;
+  added_at: string;
+  memo: string;
+}
+
+export interface WatchlistAddRequest {
+  ticker: string;
+  memo?: string;
 }
 
 export interface AgentPerformanceSummary {

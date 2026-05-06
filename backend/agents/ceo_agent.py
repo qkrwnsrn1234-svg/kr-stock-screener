@@ -9,6 +9,7 @@ import logging
 from collections import defaultdict
 
 from backend.agents.advisor_agent import AdvisorAgent
+from backend.agents.claude_client import generate_ceo_summary
 from backend.agents.financial_agent import FinancialAgent
 from backend.agents.macro_agent import MacroAgent
 from backend.agents.models import CEOReport, AgentResponse
@@ -76,6 +77,7 @@ class CEOOrchestrator:
         *,
         debate_round: bool = True,
         use_stats_weights: bool = False,
+        use_claude_summary: bool = True,
     ) -> CEOReport:
         """
         모든 에이전트를 병렬 실행하고 ``CEOReport`` 를 생성합니다.
@@ -84,12 +86,13 @@ class CEOOrchestrator:
             ticker: 종목코드.
             debate_round: 재무 vs 리스크 반론 요약 생성 여부.
             use_stats_weights: 성적표 DB 기반 에이전트 신뢰도 가중 적용 여부.
+            use_claude_summary: Claude API로 CEO 요약 문장을 보강할지 여부.
 
         Returns:
             집계 결과 및 개별 보고서.
         """
-        validator = FinancialAgent()
-        code = validator.validate_ticker(ticker)
+        # agents 목록의 첫 번째 에이전트로 종목코드 검증해 FinancialAgent 중복 생성을 피합니다
+        code = self.agents[0].validate_ticker(ticker)
 
         mult: dict[str, float] = {}
         stats_applied = False
@@ -155,6 +158,25 @@ class CEOOrchestrator:
                     "펀더멘털 개선·업종 전환 여부를 추가 확인하는 것이 타당합니다."
                 )
 
+        claude_applied = False
+        claude_model: str | None = None
+        if use_claude_summary:
+            claude_result = await generate_ceo_summary(
+                ticker=code,
+                final_opinion=final,
+                buy_pct=buy_pct,
+                neutral_pct=neutral_pct,
+                sell_pct=sell_pct,
+                summary_lines=summary_lines,
+                risk_rebuttal=rebuttal,
+                agent_reports=reports,
+            )
+            if claude_result is not None:
+                summary_lines = claude_result.summary_lines
+                rebuttal = claude_result.risk_rebuttal
+                claude_applied = True
+                claude_model = claude_result.model
+
         return CEOReport(
             ticker=code,
             final_opinion=final,
@@ -166,4 +188,6 @@ class CEOOrchestrator:
             risk_rebuttal=rebuttal,
             stats_weights_applied=stats_applied,
             agent_weight_multipliers=dict(mult) if use_stats_weights else {},
+            claude_summary_applied=claude_applied,
+            claude_model=claude_model,
         )

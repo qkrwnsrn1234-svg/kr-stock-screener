@@ -11,7 +11,7 @@ import re
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query
 
 from backend.agents.advisor_agent import AdvisorAgent
 from backend.agents.ceo_agent import CEOOrchestrator
@@ -23,6 +23,8 @@ from backend.agents.models import (
     HotSectorsReport,
     PortfolioAdvice,
     ScreeningResult,
+    WatchlistAddRequest,
+    WatchlistItem,
 )
 from backend.jobs.background_tasks import (
     scheduler_enabled,
@@ -178,13 +180,21 @@ async def analyze_ticker(
         True,
         description="false면 과열·저평가 알림(웹훅/메일)을 보내지 않습니다.",
     ),
+    use_claude_summary: bool = Query(
+        True,
+        description="true면 ANTHROPIC_API_KEY가 있을 때 CEO 요약을 Claude로 보강합니다.",
+    ),
 ) -> CEOReport:
     """
     단일 종목에 대해 전 에이전트 병렬 분석 후 CEO 종합 보고서를 반환합니다.
     """
     try:
         orch = CEOOrchestrator()
-        report = await orch.run(ticker, use_stats_weights=use_stats_weights)
+        report = await orch.run(
+            ticker,
+            use_stats_weights=use_stats_weights,
+            use_claude_summary=use_claude_summary,
+        )
         if persist:
             try:
                 await asyncio.to_thread(save_ceo_report_blocking, report)
@@ -271,6 +281,10 @@ async def screen(
         True,
         description="false면 과열·저평가 알림(웹훅/메일)을 보내지 않습니다.",
     ),
+    use_claude_summary: bool = Query(
+        False,
+        description="true면 각 종목 CEO 요약을 Claude로 보강합니다(API 비용·시간 증가).",
+    ),
 ) -> list[ScreeningResult]:
     """
     다종목 스크리닝 — 종목별 에이전트 전체 파이프라인·저평가·과열 요약을 반환합니다.
@@ -290,7 +304,11 @@ async def screen(
 
     async def _one(code: str) -> ScreeningResult:
         async with sem:
-            report = await CEOOrchestrator().run(code, use_stats_weights=use_stats_weights)
+            report = await CEOOrchestrator().run(
+                code,
+                use_stats_weights=use_stats_weights,
+                use_claude_summary=use_claude_summary,
+            )
             return await build_screening_result(report)
 
     try:
@@ -370,6 +388,56 @@ async def portfolio_advice(
         risk_level=risk_level,
         advice=text,
     )
+
+
+@app.get("/watchlist", response_model=list[WatchlistItem])
+async def watchlist_list() -> list[WatchlistItem]:
+    """관심 종목 전체 목록을 반환합니다."""
+    try:
+        from backend.storage.watchlist import list_tickers
+
+        rows = await asyncio.to_thread(list_tickers)
+        return [WatchlistItem(**r) for r in rows]
+    except Exception as exc:
+        logger.exception("관심 종목 조회 실패")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/watchlist", response_model=WatchlistItem, status_code=201)
+async def watchlist_add(body: WatchlistAddRequest = Body(...)) -> WatchlistItem:
+    """
+    관심 종목을 추가합니다. 이미 있으면 memo만 갱신합니다.
+    """
+    try:
+        from backend.storage.watchlist import add_ticker
+
+        code = FinancialAgent().validate_ticker(body.ticker.strip().zfill(6))
+        row = await asyncio.to_thread(add_ticker, code, body.memo)
+        return WatchlistItem(**row)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("관심 종목 추가 실패")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.delete("/watchlist/{ticker}", status_code=204)
+async def watchlist_remove(ticker: str) -> None:
+    """관심 종목을 삭제합니다."""
+    try:
+        from backend.storage.watchlist import remove_ticker
+
+        code = FinancialAgent().validate_ticker(ticker.strip().zfill(6))
+        deleted = await asyncio.to_thread(remove_ticker, code)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="관심 종목에 없는 종목입니다.")
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("관심 종목 삭제 실패")
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @app.get("/sector/hot", response_model=HotSectorsReport)

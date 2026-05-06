@@ -68,8 +68,11 @@ class RiskAgent(BaseAgent):
         """가격 기반 리스크 지표와 공매도 스냅샷을 종합합니다."""
         code = self.validate_ticker(ticker)
 
-        df_s = await fetch_equity_ohlcv_async(code)
-        df_b = await fetch_index_ohlcv_async("KS11")
+        # 종목 OHLCV + 코스피 지수 OHLCV를 동시에 조회합니다
+        df_s, df_b = await asyncio.gather(
+            fetch_equity_ohlcv_async(code),
+            fetch_index_ohlcv_async("KS11"),
+        )
         close_s, _vol = ti._ensure_close_volume(df_s)
         bench_close = df_b["Close"] if "Close" in df_b.columns else df_b["close"]
 

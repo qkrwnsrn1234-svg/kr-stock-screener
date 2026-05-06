@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 import pandas as pd
@@ -26,9 +27,11 @@ class TechnicalAgent(BaseAgent):
         """OHLCV 기반 기술신호를 종합합니다."""
         code = self.validate_ticker(ticker)
 
-        price_task = fetch_equity_ohlcv_async(code)
-        bench_task = fetch_index_ohlcv_async("KS11")
-        df_stock, df_bench = await price_task, await bench_task
+        # 종목 OHLCV + 코스피 지수 OHLCV를 동시에 조회합니다
+        df_stock, df_bench = await asyncio.gather(
+            fetch_equity_ohlcv_async(code),
+            fetch_index_ohlcv_async("KS11"),
+        )
 
         close_s, vol_s = ti._ensure_close_volume(df_stock)
         bench_close = df_bench["Close"] if "Close" in df_bench.columns else df_bench["close"]

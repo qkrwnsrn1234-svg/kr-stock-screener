@@ -15,10 +15,13 @@ from backend.agents.models import (
 from backend.screener.peer_valuation import SectorPeerStats, fetch_sector_peer_stats
 
 # 언더밸류 가중치 (합계 1.0)
+# FCF가 실측값으로 채워지면 W_FCF를 활성화하고 나머지를 비례 축소합니다
 W_PER = 0.32
 W_PBR = 0.28
 W_FCF = 0.10
 W_FSCORE = 0.30
+# FCF 미연동 상태에서 PER·PBR·FSCORE만으로 계산할 때 사용하는 정규화 분모
+_W_NO_FCF = W_PER + W_PBR + W_FSCORE  # 0.90
 
 # 과열 heat_score 구간 → 등급
 THR_NOTICE = 18.0
@@ -99,16 +102,18 @@ def _build_undervalue_breakdown(
 
     per_s = _per_component(stock_per, peer.median_per)
     pbr_s = _pbr_component(stock_pbr, peer.median_pbr)
-    fcf_s = 50.0
-    fcf_note = "FCF Yield는 현금흐름표 연동 후 반영 예정(현재 중립 50점)"
     fsc_s = _fscore_component(pi_int)
 
-    combined = W_PER * per_s + W_PBR * pbr_s + W_FCF * fcf_s + W_FSCORE * fsc_s
+    # FCF Yield가 실측값으로 채워지기 전까지는 해당 가중치를 제외하고
+    # 나머지 3개 가중치 합(0.90)으로 정규화합니다
+    fcf_s: float | None = None
+    fcf_note = "FCF Yield는 DART 현금흐름표 연동 후 반영 예정(현재 계산에서 제외)"
+    combined = (W_PER * per_s + W_PBR * pbr_s + W_FSCORE * fsc_s) / _W_NO_FCF
 
     return UndervalueBreakdown(
         per_score=per_s,
         pbr_score=pbr_s,
-        fcf_yield_score=fcf_s,
+        fcf_yield_score=0.0,  # 미연동 상태임을 프론트에 표시
         fscore_score=fsc_s,
         combined=max(0.0, min(100.0, float(combined))),
         peer_count=peer.peer_count,

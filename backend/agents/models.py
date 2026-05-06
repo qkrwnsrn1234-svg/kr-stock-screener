@@ -140,6 +140,14 @@ class CEOReport(BaseModel):
         default_factory=dict,
         description="에이전트명 → 적용된 신뢰도 배수(요청 시에만 채움)",
     )
+    claude_summary_applied: bool = Field(
+        default=False,
+        description="Claude API가 CEO 요약 문장 생성에 사용되었는지",
+    )
+    claude_model: str | None = Field(
+        default=None,
+        description="CEO 요약에 사용된 Claude 모델명",
+    )
 
     @field_validator("ticker")
     @classmethod
@@ -251,3 +259,19 @@ class AgentPerformanceSummary(BaseModel):
     by_agent: list[AgentStatRow] = Field(default_factory=list)
     ceo: AgentStatRow
     timestamp: str = Field(..., description="응답 생성 시각 ISO(UTC)")
+
+
+class WatchlistItem(BaseModel):
+    """관심 종목 단건 응답입니다."""
+
+    id: int = Field(..., ge=1)
+    ticker: str = Field(..., min_length=6, max_length=6)
+    added_at: str = Field(..., description="추가 시각 ISO8601(UTC)")
+    memo: str = Field(default="", description="사용자 메모")
+
+
+class WatchlistAddRequest(BaseModel):
+    """관심 종목 추가 요청 바디입니다."""
+
+    ticker: str = Field(..., min_length=6, max_length=6, description="6자리 종목코드")
+    memo: str = Field(default="", max_length=200, description="사용자 메모(선택)")

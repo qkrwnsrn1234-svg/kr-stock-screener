@@ -9,9 +9,9 @@
 
 **현재 Phase**: Phase 2 품질 개선 진행 중 (버그 수정 → Phase 3 UI 마무리)
 **현재 브랜치**: feature/phase4-scheduler-docker
-**다음 할 일**: Phase 2 품질 개선 항목(Claude API 연동·비동기 버그·DART 연동 등) 순차 처리
+**다음 할 일**: Phase 3-1 글로벌 검색바(백엔드 GET /search?q= 엔드포인트 + 프론트 자동완성) 구현
 **최종 배포 목표**: Phase 5 — pywebview + PyInstaller로 macOS .app / Windows .exe 패키징
-**마지막 커밋**: Phase 3-0 디자인 토큰·글로벌 검색바 레이아웃·컴포넌트 색상 통일
+**마지막 커밋**: Phase 2 품질 개선(BUG-1/2/3 수정 + GAP-1/2/3/4 연동)
 
 ---
 
@@ -177,41 +177,45 @@
 ### 품질 개선 — 버그 수정
 
 #### [BUG-1] 비동기 OHLCV 로딩이 순차 실행으로 동작 (TechnicalAgent·RiskAgent)
-- [ ] `await price_task, await bench_task` → `await asyncio.gather(price_task, bench_task)` 로 교체
-      — 종목 OHLCV + 코스피 지수 OHLCV를 진짜 병렬 로딩으로 변경
+- [x] `await price_task, await bench_task` → `await asyncio.gather(price_task, bench_task)` 로 교체
       — 파일: `backend/agents/technical_agent.py`, `backend/agents/risk_agent.py`
 
 #### [BUG-2] CEOOrchestrator가 validate_ticker 하나 때문에 FinancialAgent 중복 생성
-- [ ] `validator = FinancialAgent()` 제거 → `BaseAgent().validate_ticker(ticker)` 또는 `self.agents[0].validate_ticker(ticker)` 로 교체
+- [x] `validator = FinancialAgent()` 제거 → `self.agents[0].validate_ticker(ticker)` 로 교체
       — 파일: `backend/agents/ceo_agent.py`
 
 #### [BUG-3] FCF Yield가 언더밸류 스코어에서 항상 50점(중립) 고정
-- [ ] `screening.py`의 `fcf_s = 50.0` 상수 제거 → DART 현금흐름표 연동 후 실제 FCF Yield로 대체
-      — 연동 전까지는 FCF 가중치(W_FCF=0.10)를 PER·PBR에 재분배하거나 점수 계산에서 제외
+- [x] `fcf_s = 50.0` 상수 제거 → FCF 가중치 제외 후 PER·PBR·FSCORE 3가중치 합(0.90)으로 정규화
+      — 파일: `backend/screener/screening.py`
 
 ### 품질 개선 — 기획-구현 갭
 
-#### [GAP-1] Claude API가 한 번도 호출되지 않음 ← 가장 중요
-- [ ] 현재 모든 에이전트는 if문 규칙 기반 휴리스틱 → "AI 멀티에이전트" 컨셉 미구현
-- [ ] **설계 결정 필요**: 어느 에이전트부터 Claude 연동할지 선택
-      — 권장 순서: ① CEO 종합 의견 생성 ② 거시(뉴스·지정학 해석) ③ 재무(자연어 분석)
-- [ ] `ANTHROPIC_API_KEY` 환경변수 연동 확인 (패키지는 이미 설치됨)
-- [ ] 에이전트 내부에서 룰 기반 signals 딕셔너리 → Claude에 컨텍스트로 전달 → 자연어 reasoning 생성 구조
+#### [GAP-1] Claude API 연동 시작 ← 가장 중요
+- [x] CEO 종합 의견 생성부터 Claude 선택 연동
+      — `ANTHROPIC_API_KEY`가 있으면 CEO 단계에서 Claude 호출, 없거나 실패하면 기존 룰 기반 요약 유지
+- [x] **설계 결정 완료**: ① CEO 종합 의견 생성부터 적용 → ② 거시(뉴스·지정학 해석) → ③ 재무(자연어 분석) 순서로 확대
+- [x] `ANTHROPIC_API_KEY` 환경변수 연동 확인 (패키지는 이미 설치됨)
+      — `.env.example`에 `CLAUDE_MODEL`, `CLAUDE_CEO_SUMMARY_ENABLED` 추가
+- [x] 에이전트 내부에서 룰 기반 signals 딕셔너리 → Claude에 컨텍스트로 전달 → 자연어 reasoning 생성 구조
+      — 파일: `backend/agents/claude_client.py`, `backend/agents/ceo_agent.py`
+- [x] 거시 에이전트 지정학·환율 영향 reasoning에 Claude 확대
+      — `generate_macro_commentary()` 추가, `macro_agent.py` 연동
+- [ ] 재무 에이전트 정량 지표 자연어 분석에 Claude 확대 (선택)
 
 #### [GAP-2] DART 재무데이터가 financial_agent에 연동되지 않음
-- [ ] `dart_data.py`의 `fetch_financial_accounts()` → financial_agent에서 호출
-      — 연결 재무제표(CFS)에서 영업이익, 부채비율, FCF(영업CF - CAPEX) 추출
-      — ROADMAP Phase 1-4 지표 중 PEG, EV/EBITDA, ROIC, FCF Yield, 이자보상배율, DCF 구현 기반
+- [x] `dart_data.py`의 `fetch_financial_accounts()` → financial_agent에서 호출
+      — 연결 재무제표(CFS)에서 영업이익률·부채비율·FCF·이자보상배율 추출 반영
+      — 파일: `backend/agents/financial_agent.py`
 
 #### [GAP-3] macro_agent의 지정학 리스크가 플레이스홀더
-- [ ] `signals["geopolitical_placeholder"]` 제거
-- [ ] 뉴스 API(네이버 금융 뉴스 크롤링 또는 외부 API) 연동 또는 Claude에 최신 뉴스 요약 위임
-      — Claude 연동 시 "[GAP-1]" 선행 필요
+- [x] `signals["geopolitical_placeholder"]` 제거
+- [x] Claude를 통한 지정학·금리·환율 영향 자연어 코멘터리 생성 연동
+      — `generate_macro_commentary()` → `macro_agent.py`
 
 #### [GAP-4] 관심 종목이 프론트 LocalStorage에만 저장
-- [ ] 데스크톱 앱(Phase 5) 재설치 시 관심 종목 유실 문제
-- [ ] 백엔드 SQLite에 watchlist 테이블 추가 → `GET/POST/DELETE /watchlist` 엔드포인트
+- [x] 백엔드 SQLite에 watchlist 테이블 추가 → `GET/POST/DELETE /watchlist` 엔드포인트
       — 파일: `backend/storage/watchlist.py` (신규), `backend/main.py` 라우터 추가
+- [ ] 프론트 Watchlist 탭에서 백엔드 API 연동 (Phase 3-2 선행 작업)
 
 ---
 
