@@ -9,8 +9,8 @@
 
 **현재 Phase**: Phase 1 — 백엔드 기반 구축
 **현재 브랜치**: main
-**다음 할 일**: Python 가상환경 세팅 + 패키지 설치
-**마지막 커밋**: 프로젝트 기본 폴더 구조 생성
+**다음 할 일**: 데이터 수집 모듈 — FinanceDataReader 연동 (backend/data/)
+**마지막 커밋**: Phase 1-1 환경 세팅(requirements, .env 예시, venv)
 
 ---
 
@@ -28,12 +28,12 @@
 ## Phase 1 — 백엔드 기반 구축 🔄 진행 중
 
 ### 1-1. 환경 세팅
-- [ ] Python 가상환경 생성 (venv)
-- [ ] requirements.txt 작성
-- [ ] 필수 패키지 설치
+- [x] Python 가상환경 생성 (venv)
+- [x] requirements.txt 작성
+- [x] 필수 패키지 설치
       (fastapi, uvicorn, anthropic, FinanceDataReader,
        pykrx, python-dotenv, pandas, requests)
-- [ ] .env 파일 생성 (API 키 관리)
+- [x] .env 파일 생성 (API 키 관리) — 저장소에는 `.env.example` 제공, 로컬에서 `.env` 복사 후 값 입력
 
 ### 1-2. 데이터 수집 모듈 (backend/data/)
 - [ ] FinanceDataReader 연동 (주가 데이터)

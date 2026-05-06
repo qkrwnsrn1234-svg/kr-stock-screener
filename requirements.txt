@@ -1,0 +1,12 @@
+# KR Stock Screener — 백엔드 의존성 (Phase 1)
+# Python 3.11+ 권장
+
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+anthropic>=0.40.0
+# PyPI 패키지명은 하이픈 표기 (import는 FinanceDataReader)
+finance-datareader>=0.9.96
+pykrx>=1.0.50
+python-dotenv>=1.0.1
+pandas>=2.2.0
+requests>=2.32.0
