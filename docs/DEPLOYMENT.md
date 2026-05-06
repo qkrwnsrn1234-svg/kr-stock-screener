@@ -16,7 +16,9 @@
 | `ANTHROPIC_API_KEY` | Claude CEO 요약 등 (없어도 룰 기반으로 동작) |
 | `DART_API_KEY` | 공시·재무 (선택에 따라 기능 제한) |
 | `ECOS_API_KEY` | 한국은행 거시 지표 |
-| `PORT` | 많은 호스팅이 자동 설정. Dockerfile은 `PORT`가 없으면 **8000**을 씁니다. |
+| `PORT` | 많은 호스팅이 자동 설정합니다. 미설정 시 로컬/이미지 기본 리슨은 **18000**(`python -m backend.run_uvicorn`). |
+| `BIND_HOST` | 컨테이너에서는 보통 **`0.0.0.0`**(이 Dockerfile의 기본). 로컬만 열 때는 `127.0.0.1`. |
+| `SERVER_PORT_AUTOSCAN` | `false` 이면 `PORT`만 시도합니다. Compose 예시처럼 호스트 매핑이 고정일 때 **`false`** 권장. |
 | `FRONTEND_DIST_DIR` | (선택) PyInstaller 번들 등에서 빌드된 React `dist` 절대 경로 |
 | `SERVE_SPA` | 기본 `true`. `dist` 가 없으면 API만 제공. `false` 이면 `dist` 가 있어도 정적 서빙 생략 |
 
@@ -46,7 +48,7 @@ python backend/scripts/migrate_sqlite_to_postgres.py
 ## 5. Fly.io 등 기타 플랫폼
 
 - **Docker 이미지** 배포 패턴은 동일합니다.  
-- `fly.toml`에서 `internal_port`를 컨테이너가 듣는 포트와 맞추거나, 플랫폼에 맞게 `PORT`를 전달하면 됩니다.  
+- `fly.toml`에서 `internal_port`를 컨테이너가 듣는 **`PORT`(미주입 시 기본 18000)** 와 맞추거나, 플랫폼에서 주입되는 `PORT`를 그대로 쓰면 됩니다.  
 - 같은 이미지를 AWS ECS, Google Cloud Run, Railway 등에도 올릴 수 있습니다.
 
 ## 6. CI (GitHub Actions)

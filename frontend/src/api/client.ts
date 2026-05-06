@@ -42,7 +42,11 @@ async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export async function getHealth(): Promise<{ status: string; timestamp: string }> {
+export async function getHealth(): Promise<{
+  status: string;
+  timestamp: string;
+  listen_port?: number;
+}> {
   return fetchJson("/health");
 }
 

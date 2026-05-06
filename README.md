@@ -13,12 +13,14 @@
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 export PYTHONPATH=.
-uvicorn backend.main:app --reload --port 8000
+python -m backend.run_uvicorn
 ```
 
-- API 문서: `http://127.0.0.1:8000/docs`  
-- 같은 서버에서 SPA를 쓰려면 프런트 빌드 후 동일 포트로 접속: `cd frontend && npm ci && npm run build` → `http://127.0.0.1:8000/`  
-- 개발 시에는 Vite(`npm run dev`, 기본 5173)가 `/api`를 백엔드로 프록시합니다.
+선호 포트 `PORT`(기본 **18000**, `.env`에서 변경)가 이미 사용 중이면 같은 머신에서는 이어서 빈 포트를 자동 선택합니다(`SERVER_PORT_AUTOSCAN=false`로 끌 수 있음). 개발 편의로 `SERVER_DEV_RELOAD=true` 로 코드 자동 재로드 가능합니다.
+
+- API 문서: `http://127.0.0.1:18000/docs`(다른 포트로 뜬 경우 `GET /api/health` 의 `listen_port` 확인)
+- 같은 서버에서 SPA를 쓰려면 프런트 빌드 후 동일 포트로 접속: `cd frontend && npm ci && npm run build` → 같은 호스트로 직접 접속  
+- 개발 시에는 Vite(`npm run dev`, 기본 5173)가 `/api`를 로컬 백엔드(기본 18000)로 프록시합니다.
 
 ## Docker
 

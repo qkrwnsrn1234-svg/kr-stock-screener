@@ -13,9 +13,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // 동일 접두사 `/api` 로 백엔드(uvicorn 기본 8000) 연결(CORS 불필요)
+      // 동일 접두사 `/api` 로 백엔드 연결(CORS 불필요) — 저장소 기본 리슨 18000
       "/api": {
-        target: "http://127.0.0.1:8000",
+        target: "http://127.0.0.1:18000",
         changeOrigin: true,
       },
     },

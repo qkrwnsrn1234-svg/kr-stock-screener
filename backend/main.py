@@ -143,19 +143,24 @@ def _normalize_ticker_list(raw: str) -> list[str]:
     return uniq
 
 
-async def _health_payload() -> dict[str, str]:
+async def _health_payload() -> dict[str, str | int]:
     """헬스 응답 본문(로드밸런서용 루트·프런트 /api 헬스 겸용)."""
-    return {"status": "ok", "timestamp": _utc_now_iso()}
+    out: dict[str, str | int] = {"status": "ok", "timestamp": _utc_now_iso()}
+    # run_uvicorn 이 실제 바인드 포트를 기록(데스크톱·포트 자동 탐색 대응)
+    port_s = os.getenv("KR_STOCK_ACTUAL_HTTP_PORT", "").strip()
+    if port_s.isdigit():
+        out["listen_port"] = int(port_s)
+    return out
 
 
 @app.get("/health")
-async def health_root() -> dict[str, str]:
+async def health_root() -> dict[str, str | int]:
     """서버 동작 확인(레거시·인프라용 루트 경로)."""
     return await _health_payload()
 
 
 @api_router.get("/health")
-async def health_api() -> dict[str, str]:
+async def health_api() -> dict[str, str | int]:
     """서버 동작 확인(/api 헬스)."""
     return await _health_payload()
 

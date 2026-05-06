@@ -3,7 +3,7 @@
 # PostgreSQL: db 서비스를 띄운 뒤 DATABASE_URL 에 postgresql://...@db:5432/ 지정
 #   docker compose --profile postgres up -d db
 #   DATABASE_URL 설정 후 동일 디렉터리에서 docker compose up --build
-# API: http://127.0.0.1:8000  문서: /docs
+# API: http://127.0.0.1:18000  문서: /docs
 
 services:
   db:
@@ -28,8 +28,11 @@ services:
   api:
     build: .
     ports:
-      - "8000:8000"
+      - "${API_HOST_PORT:-18000}:18000"
     environment:
+      BIND_HOST: "0.0.0.0"
+      PORT: "18000"
+      SERVER_PORT_AUTOSCAN: "false"
       # 스케줄러: KRX 상장목록 등 캐시 주기적 워밍
       SCHEDULER_ENABLED: "true"
       SCHEDULER_INTERVAL_SECONDS: "3600"

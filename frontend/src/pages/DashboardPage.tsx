@@ -57,8 +57,11 @@ export function DashboardPage() {
         <h2>백엔드 연결</h2>
         {err ? (
           <p className="error">
-            {err} — uvicorn을 띄운 뒤 다시 시도하세요. (예:{" "}
-            <code style={{ color: "var(--color-accent)" }}>uvicorn backend.main:app --reload</code>)
+            {err} — 백엔드를 띄운 뒤 다시 시도하세요. (예:{" "}
+            <code style={{ color: "var(--color-accent)" }}>
+              PYTHONPATH=. python -m backend.run_uvicorn
+            </code>
+            · 기본 포트 18000)
           </p>
         ) : (
           <p className="muted" style={{ margin: 0 }}>

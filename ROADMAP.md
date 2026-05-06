@@ -9,9 +9,9 @@
 
 **현재 Phase**: Phase 5 데스크톱·단일 서버 패키징 진행 중
 **현재 브랜치**: feature/phase4-scheduler-docker
-**다음 할 일**: 서버 포트 기본 18000 및 사용 가능 포트 자동 탐색(Phase 5-1 잔여)
+**다음 할 일**: pywebview 데스크톱 래퍼 `desktop/app.py`(Phase 5-2)
 **최종 배포 목표**: Phase 5 — pywebview + PyInstaller로 macOS .app / Windows .exe 패키징
-**마지막 커밋**: FastAPI `/api` 프리픽스 및 React `dist` 정적 서빙 통합(Docker 빌드 포함)
+**마지막 커밋**: HTTP 기본 포트 18000, 포트 자동 탐색(`run_uvicorn`) 및 Docker 진입 통합
 
 ---
 
@@ -249,7 +249,7 @@
 - [x] 숫자 색상 — 양수 초록, 음수 빨강 (수익률, 등락률 등)
 
 ### 3-1. 글로벌 검색 & 종목 탐색
-- [x] React + TypeScript 초기 세팅 (Vite, `/api` 프록시 → 백엔드 8000)
+- [x] React + TypeScript 초기 세팅 (Vite, `/api` 프록시 → 백엔드 기본 **18000**)
 - [x] **글로벌 검색바** — 종목명 또는 6자리 코드 입력 → 자동완성
       — 백엔드 `GET /search?q=` 엔드포인트 연동 (Phase 1-5 신규 항목)
       — 입력 디바운스(300ms) 적용
@@ -299,8 +299,8 @@
 ### 5-1. 빌드 통합 구조 정비
 - [x] React 정적 빌드 결과물(`dist/`)을 FastAPI가 서빙하도록 통합
       — `GET /` → `dist/index.html`, `/assets` 마운트·클라 라우트 SPA 폴백, REST는 `/api/*`
-- [ ] 서버 포트 고정 (기본 18000, `.env`로 변경 가능)
-- [ ] 앱 실행 시 사용 가능한 포트 자동 탐색 로직 추가 (포트 충돌 방지)
+- [x] 서버 포트 고정 (기본 **18000**, `PORT`/`.env`로 변경 가능, `backend/run_uvicorn`)
+- [x] 앱 실행 시 사용 가능한 포트 자동 탐색 (`SERVER_PORT_AUTOSCAN`, `GET /api/health`에 `listen_port`)
 
 ### 5-2. pywebview 데스크톱 래퍼
 - [ ] `desktop/app.py` 생성
