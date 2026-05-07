@@ -11,6 +11,9 @@ if [[ ! -d "$ROOT/frontend/dist" ]]; then
   (cd "$ROOT/frontend" && npm ci && npm run build)
 fi
 
+# BUG-5 재발 방지: PyInstaller와 동일 인터프리터에 pywebview 등 런타임 의존성 동기화
+python3 -m pip install -q -r "$ROOT/requirements.txt"
+
 python3 -m pip install -q -r "$ROOT/requirements-build.txt"
 python3 -m PyInstaller --noconfirm "$ROOT/desktop/app.spec"
 

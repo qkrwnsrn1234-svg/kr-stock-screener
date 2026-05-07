@@ -191,11 +191,10 @@
 - [x] 원인 파악: `requirements.txt`에 `pywebview>=5.4.0` 선언되어 있으나 `.venv`에 미설치
       — 증상: `ModuleNotFoundError: No module named 'webview'` → 앱 즉시 종료
       — 해결: `.venv/bin/pip install pywebview` 로 수동 설치 완료 (6.2.1 설치됨)
-- [ ] 재발 방지: `scripts/build_desktop.sh` 또는 `Makefile`에 실행 전 의존성 검증 추가
+- [x] 재발 방지: `scripts/build_desktop.sh` 에 PyInstaller 실행 전 `requirements.txt` 동기화 추가, `Makefile` `build-desktop` 에서 `.venv` 있을 때 선행 `pip install` (BUG-5)
       ```bash
-      .venv/bin/pip install -r requirements.txt --quiet
+      python3 -m pip install -q -r requirements.txt
       ```
-      — 또는 `desktop/app.py` 실행 시 `pywebview` import 실패 → 안내 메시지 + 자동 설치 유도
 
 #### [BUG-4] pykrx 라이브러리 내부 `print()` 경고 출력
 - [ ] 앱/서버 시작 시 `"KRX 로그인 실패: KRX_ID 또는 KRX_PW 환경 변수가 설정되지 않았습니다."` 출력
