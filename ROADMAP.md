@@ -339,7 +339,43 @@
 
 ### 5-4. 빌드 자동화
 - [x] `scripts/build_desktop.sh` + `Makefile` (`build-desktop`, `build-mac` / `build-win` → 동일 스크립트)
+- [ ] `make install` — 빌드 후 `/Applications/KRStockScreener.app` 자동 복사
+      ```makefile
+      install: build-desktop
+          cp -r dist/KRStockScreener.app /Applications/
+          @echo "✅ 설치 완료: /Applications/KRStockScreener.app"
+      ```
+      — 설치 후 Launchpad · Spotlight · Dock 어디서나 실행 가능
+- [ ] macOS 첫 실행 보안 경고 우회 문서화 (`README.md` 또는 `docs/` 추가)
+      — 서명되지 않은 앱은 최초 1회만: Finder에서 우클릭 → "열기" → "열기" 확인
+      — 이후부터는 더블클릭만으로 실행
 - [ ] GitHub Actions CI: 태그 푸시 시 자동 빌드 + Releases 업로드 (선택)
+
+### 5-5. 최종 실행 방법 (완성 후 사용자 흐름)
+
+> **목표: 카카오톡처럼 아이콘 하나로 실행**
+
+#### 최초 설치 (딱 한 번만)
+```bash
+# 1. 저장소 루트에서 실행
+make build-desktop   # PyInstaller로 .app 빌드 (~수 분 소요)
+make install         # /Applications/KRStockScreener.app 복사
+
+# 2. macOS 보안 승인 (처음 한 번만)
+# Finder → /Applications → KRStockScreener.app
+# 우클릭 → "열기" → "열기" 클릭
+```
+
+#### 이후 매번 실행
+- **방법 1**: Finder → `/Applications/KRStockScreener.app` 더블클릭
+- **방법 2**: Spotlight(`⌘+Space`) → "KRStockScreener" 검색 → Enter
+- **방법 3**: Dock에 고정 후 클릭
+
+#### 앱 업데이트 시 (코드 변경 후)
+```bash
+make build-desktop   # 재빌드
+make install         # /Applications 덮어쓰기
+```
 
 ---
 
