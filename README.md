@@ -43,9 +43,10 @@ PyInstaller 공식 지원은 **Python 3.12 이하** 권장([ROADMAP](./ROADMAP.m
 ```bash
 ./scripts/build_desktop.sh
 # 또는: make build-desktop   (동일)
+# 응용 프로그램(/Applications)에 넣으려면: make install  (빌드 후 복사)
 ```
 
-- **macOS** 결과물: `dist/KRStockScreener.app` (onedir + BUNDLE)
+- **macOS** 결과물: `dist/KRStockScreener.app` (onedir + BUNDLE) — **여기만** 생성되며, Dock·Launchpad용으로는 `make install` 로 `/Applications/` 에 복사
 - **Windows/Linux** 결과물: `dist/KRStockScreener/` 폴더 내 실행 파일
 - 번들된 앱은 첫 실행 시 사용자 데이터 디렉터리에 SQLite·캐시·`.env` 를 둡니다(`desktop/frozen_env.py`).
 - `requirements-build.txt` 에 `pyinstaller` 가 있습니다.
