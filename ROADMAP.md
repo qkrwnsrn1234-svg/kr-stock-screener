@@ -7,11 +7,11 @@
 
 ## 📍 현재 작업 위치 (항상 여기를 먼저 확인)
 
-**현재 Phase**: Phase 5 데스크톱·단일 서버 패키징 진행 중 (Phase 1-4 재무 지표 보강 병행)
+**현재 Phase**: Phase 1-4 에이전트 세부 지표 보강 (재무 완료 → 리스크/퀀트 다음)
 **현재 브랜치**: feature/phase4-scheduler-docker
-**다음 할 일**: 리스크/퀀트/섹터 에이전트 세부 지표 보강, 또는 (선택) PyInstaller CI·Releases 자동화
-**최종 배포 목표**: Phase 5 — pywebview + PyInstaller로 macOS .app / Windows .exe 패키징
-**마지막 커밋**: PyInstaller `desktop/app.spec`, 빌드 스크립트·frozen 경로·캐시 `KR_STOCK_CACHE_DIR`
+**다음 할 일**: 리스크(Altman Z-Score·공매도 정교화) 또는 퀀트(Magic Formula 랭킹) 중 선택
+**최종 배포 목표**: Phase 5 ✅ 구조 완성 — macOS `.app` 더블클릭으로 실행 가능한 상태
+**마지막 커밋**: feat(agents): 재무 에이전트 PEG·EV/EBITDA·ROIC·FCF Yield·DCF 등 지표 보강
 
 ---
 
@@ -83,13 +83,13 @@
 
 #### 기술적 분석가 (technical_agent.py)
 담당 지표:
-- [ ] RSI — 과매수(70+)/과매도(30-) 판단
-- [ ] MACD + 시그널선 교차
-- [ ] 이동평균선 (20/60/120/200일)
-- [ ] 골든크로스 / 데드크로스
-- [ ] 볼린저 밴드 위치
-- [ ] 거래량 분석 (OBV)
-- [ ] 상대강도 (개별주 vs 코스피/코스닥)
+- [x] RSI — 과매수(70+)/과매도(30-) 판단 (`ti.rsi`, 14일)
+- [x] MACD + 시그널선 교차 (`ti.macd_snapshot`, 히스토그램·골든교차 플래그)
+- [x] 이동평균선 (20/60/120/200일) (`ti.moving_averages`)
+- [x] 골든크로스 / 데드크로스 (`ti.golden_death_cross_flags`)
+- [x] 볼린저 밴드 위치 (`ti.bollinger_band_pctb`, %B 기준)
+- [x] 거래량 분석 (OBV) (`ti.obv_last`)
+- [x] 상대강도 (개별주 vs 코스피/코스닥) (`ti.relative_strength_vs_benchmark`, 60일)
 
 #### 리스크 매니저 (risk_agent.py)
 담당 지표:
@@ -126,12 +126,11 @@
 - [ ] 시장 국면별 방어 전략 제시
 
 #### CEO 오케스트레이터 (ceo_agent.py)
-- [ ] 전체 에이전트 병렬 호출
-- [ ] 반론 라운드: 리스크 매니저가 낙관론에 반박
-- [ ] 신뢰도 퍼센트 집계
-      예) 매수 68% / 중립 22% / 매도 10%
-- [ ] 최종 투자 의견 + 핵심 근거 3줄 요약
-- [ ] 에이전트별 발언 전문 보존
+- [x] 전체 에이전트 병렬 호출 (`asyncio.gather`)
+- [x] 반론 라운드: 리스크 매니저가 낙관론에 반박 (`risk_rebuttal` 생성)
+- [x] 신뢰도 퍼센트 집계 (`buy_pct` / `neutral_pct` / `sell_pct`)
+- [x] 최종 투자 의견 + 핵심 근거 3줄 요약 (`summary_lines`, Claude 보강 포함)
+- [x] 에이전트별 발언 전문 보존 (`agent_reports` 전체 포함)
 
 ### 1-5. FastAPI 서버 (backend/)
 - [x] main.py 기본 설정
@@ -187,6 +186,17 @@
 #### [BUG-3] FCF Yield가 언더밸류 스코어에서 항상 50점(중립) 고정
 - [x] `fcf_s = 50.0` 상수 제거 → FCF 가중치 제외 후 PER·PBR·FSCORE 3가중치 합(0.90)으로 정규화
       — 파일: `backend/screener/screening.py`
+
+#### [BUG-4] pykrx 라이브러리 내부 `print()` 경고 출력
+- [ ] 앱/서버 시작 시 `"KRX 로그인 실패: KRX_ID 또는 KRX_PW 환경 변수가 설정되지 않았습니다."` 출력
+      — 원인: pykrx 라이브러리 내부 코드(`pykrx/website/comm/auth.py:185`)의 `print()` 직접 호출
+      — 해결: pykrx 최초 임포트 시 `contextlib.redirect_stdout` 로 stdout 일시 억제
+      — 예시: `backend/__init__.py` 또는 `backend/main.py` 상단에서 처리
+      ```python
+      import contextlib, io
+      with contextlib.redirect_stdout(io.StringIO()):
+          import pykrx  # 내부 print() 흡수
+      ```
 
 ### 품질 개선 — 기획-구현 갭
 
