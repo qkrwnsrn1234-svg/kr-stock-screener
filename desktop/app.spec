@@ -61,6 +61,22 @@ if sys.platform == "darwin":
         except Exception:
             pass
 
+# pywebview Windows(EdgeChromium/WebView2) 런타임 — pythonnet/clr 브릿지가 빠지면 창이 안 뜸
+if sys.platform == "win32":
+    for _pkg in (
+        "clr_loader",
+        "pythonnet",
+        "cffi",
+        "webview.platforms.edgechromium",
+    ):
+        try:
+            d, b, h = collect_all(_pkg)
+            _datas_acc += d
+            _binaries_acc += b
+            _hidden_acc += h
+        except Exception:
+            pass
+
 _datas_extra: list = []
 _frontend_dist = _APP_ROOT / "frontend" / "dist"
 if _frontend_dist.is_dir():
@@ -74,6 +90,18 @@ _env_ex = _APP_ROOT / ".env.example"
 if _env_ex.is_file():
     _datas_extra.append((str(_env_ex), "."))
 
+# 플랫폼별 아이콘: 존재하면 EXE/BUNDLE 에 사용, 없으면 None (기본 아이콘)
+_icon_for_exe: str | None = None
+_icon_for_bundle: str | None = None
+if sys.platform == "win32":
+    _ico = _APP_ROOT / "assets" / "icon.ico"
+    if _ico.is_file():
+        _icon_for_exe = str(_ico)
+elif sys.platform == "darwin":
+    _icns = _APP_ROOT / "assets" / "icon.icns"
+    if _icns.is_file():
+        _icon_for_bundle = str(_icns)
+
 a = Analysis(
     [_entry],
     pathex=_pathex,
@@ -82,6 +110,7 @@ a = Analysis(
     hiddenimports=_hidden_acc
     + collect_submodules("backend")
     + (["webview.platforms.cocoa"] if sys.platform == "darwin" else [])
+    + (["webview.platforms.edgechromium"] if sys.platform == "win32" else [])
     + [
         "uvicorn.loops.auto",
         "uvicorn.loops.asyncio",
@@ -123,6 +152,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=_icon_for_exe,
 )
 
 coll = COLLECT(
@@ -140,7 +170,7 @@ if sys.platform == "darwin":
     app = BUNDLE(
         coll,
         name="KRStockScreener.app",
-        icon=None,
+        icon=_icon_for_bundle,
         bundle_identifier="com.krstock.screener",
         info_plist={
             "NSHighResolutionCapable": True,

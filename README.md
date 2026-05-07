@@ -51,6 +51,46 @@ PyInstaller 공식 지원은 **Python 3.12 이하** 권장([ROADMAP](./ROADMAP.m
 - 번들된 앱은 첫 실행 시 사용자 데이터 디렉터리에 SQLite·캐시·`.env` 를 둡니다(`desktop/frozen_env.py`).
 - `requirements-build.txt` 에 `pyinstaller` 가 있습니다.
 
+### Windows 인스톨러 (`.exe` Inno Setup)
+
+> PyInstaller는 크로스 컴파일이 불가능합니다. Windows `.exe` 인스톨러는 **Windows 환경**(GitHub Actions 또는 Windows PC)에서만 만들 수 있습니다.
+
+#### 방법 1 — GitHub Actions (권장, PC 없어도 됨)
+
+```bash
+# 태그 푸시 → 자동 빌드 → Releases 페이지 자동 업로드 (5~10분)
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+수동 실행도 가능합니다(Releases에는 업로드되지 않음, 아티팩트만 생성):
+
+```bash
+gh workflow run release-windows.yml -f version=0.1.0
+```
+
+워크플로 정의: [`.github/workflows/release-windows.yml`](./.github/workflows/release-windows.yml)
+
+#### 방법 2 — Windows PC에서 PowerShell
+
+저장소 루트에서:
+
+```powershell
+.\scripts\build_windows_installer.ps1 -Version "0.1.0"
+```
+
+- 사전 조건: Python 3.12, Node.js 20, Inno Setup 6 설치
+- 산출물: `dist\KRStockScreener-Setup-0.1.0.exe`
+- 자세한 안내: [`installer/windows/README.md`](./installer/windows/README.md)
+
+#### 사용자 설치 흐름
+
+1. Releases 페이지에서 `KRStockScreener-Setup-X.Y.Z.exe` 다운로드
+2. 더블클릭 → 마법사 진행("다음 → 다음 → 설치")
+3. 시작 메뉴 또는 바탕화면 아이콘으로 실행
+
+> 윈도우 11과 최신 윈도우 10은 **WebView2 런타임**이 사전 설치되어 있어 별도 설치가 필요 없습니다. 구형 윈도우 10에서 창이 뜨지 않으면 [Microsoft 공식 페이지](https://developer.microsoft.com/microsoft-edge/webview2/) 에서 Evergreen Bootstrapper 를 받아 설치하세요.
+
 ### macOS 첫 실행 시 보안 승인 (한 번만)
 
 PyInstaller로 만든 앱은 Apple 개발자 서명이 없으면 **처음 실행할 때** macOS가 “신뢰할 수 없는 개발자” 경고를 띄울 수 있습니다. 카카오톡 등 상용 앱과 달리 로컬에서 빌드한 `.app` 이라 흔한 현상입니다.

@@ -7,11 +7,11 @@
 
 ## 📍 현재 작업 위치 (항상 여기를 먼저 확인)
 
-**현재 Phase**: Phase 1-4 마무리 및 선택 과제 (Claude 재무 확대·워치리스트 그룹·윈도우 빌드 CI 등)
+**현재 Phase**: Phase 5 마무리 + 선택 과제 (Claude 재무 확대·워치리스트 그룹)
 **현재 브랜치**: main
-**다음 할 일**: [GAP-1] 재무 에이전트 Claude 확대(선택) / [3-2] 관심종목 그룹 태그(선택) / Phase 5 Windows·Release CI(선택)
-**최종 배포 목표**: Phase 5 — `make build-desktop && make install` 로 `/Applications` 설치·첫 실행 보안 안내까지 반영
-**마지막 커밋**: 분석 화면 퀀트 시그널 카드 UI (`QuantSignalCards`)
+**다음 할 일**: [GAP-1] 재무 에이전트 Claude 확대(선택) / [3-2] 관심종목 그룹 태그(선택)
+**최종 배포 목표**: Phase 5 — macOS `make build-desktop && make install` + Windows 인스톨러 GitHub Actions 자동 빌드(태그 푸시)
+**마지막 커밋**: Windows 인스톨러(Inno Setup) + GitHub Actions Release CI 추가
 
 ---
 
@@ -364,7 +364,7 @@
 ### 5-3. PyInstaller 번들링
 - [x] `desktop/app.spec` 작성 (`desktop/pyinstaller_entry.py`, `collect_all`·`collect_submodules(backend)`·`frontend/dist`·`.env.example` 동봉)
 - [x] macOS **onedir** + `BUNDLE` → `dist/KRStockScreener.app` (Windows/Linux 는 `dist/KRStockScreener/` 폴더)
-- [ ] Windows: `.exe` NSIS 인스톨러 생성 (선택)
+- [x] Windows: `.exe` 인스톨러 생성 — **Inno Setup 6** 채택(NSIS 대신, 한글·표준 동작 우수). `installer/windows/installer.iss` + `assets/icon.ico`(멀티해상도) + `desktop/app.spec` Windows 분기(`webview.platforms.edgechromium`, `clr_loader`/`pythonnet` `collect_all`)
 - [x] 번들 크기 일부 절감: `excludes`(tkinter·PyQt5 등). `matplotlib` 는 `pykrx` import 에 필요해 제외 목록에 넣지 않음. `upx=False`
 - [x] 런타임: ``desktop/frozen_env.py`` 로 사용자 영역 DB·캐시·`.env` 복사, ``KR_STOCK_CACHE_DIR`` (`backend/data/cache.py`)
 
@@ -381,7 +381,8 @@
       — 서명되지 않은 앱은 최초 1회만: Finder에서 우클릭 → "열기" → "열기" 확인
       — 이후부터는 더블클릭만으로 실행
 - [x] `make install-only` — 기존 `dist/KRStockScreener.app` 만 `/Applications` 로 복사 (재빌드 생략)
-- [ ] GitHub Actions CI: 태그 푸시 시 자동 빌드 + Releases 업로드 (선택)
+- [x] GitHub Actions CI: 태그(`v*`) 푸시 시 Windows 자동 빌드 + Releases 업로드 — `.github/workflows/release-windows.yml` (windows-latest, choco install innosetup, `softprops/action-gh-release`)
+- [x] 로컬 Windows 빌드 보조: `scripts/build_windows_installer.ps1` (PowerShell) + `make build-win` 안내 메시지(macOS 오작동 방지)
 
 ### 5-5. 최종 실행 방법 (완성 후 사용자 흐름)
 

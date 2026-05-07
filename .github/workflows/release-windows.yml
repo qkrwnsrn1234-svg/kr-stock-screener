@@ -1,0 +1,119 @@
+# 윈도우 데스크톱 인스톨러 자동 빌드 — 태그 푸시 또는 수동 실행 시
+# 산출물: dist\KRStockScreener-Setup-<version>.exe (Inno Setup 6)
+
+name: Release (Windows Installer)
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "빌드 버전 (예: 0.1.0). 비우면 0.0.0-dev 로 빌드되며 Release 업로드는 건너뜁니다."
+        required: false
+        default: ""
+
+concurrency:
+  group: release-windows-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Windows Installer
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 빌드 버전 결정
+        id: ver
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like "refs/tags/v*") {
+            $v = $env:GITHUB_REF -replace "^refs/tags/v", ""
+          } elseif ("${{ github.event.inputs.version }}" -ne "") {
+            $v = "${{ github.event.inputs.version }}"
+          } else {
+            $v = "0.0.0-dev"
+          }
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Build version: $v"
+
+      - name: Python 3.12 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Node.js 20 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 프론트엔드 빌드
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: 파이썬 의존성 설치
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-build.txt
+
+      - name: PyInstaller 데스크톱 번들 빌드
+        run: python -m PyInstaller --noconfirm desktop/app.spec
+
+      - name: 빌드 결과 확인
+        shell: pwsh
+        run: |
+          $exe = "dist\KRStockScreener\KRStockScreener.exe"
+          if (-not (Test-Path $exe)) {
+            Write-Error "PyInstaller 산출물을 찾을 수 없습니다: $exe"
+            exit 1
+          }
+          Get-ChildItem dist\KRStockScreener | Select-Object -First 20
+
+      - name: Inno Setup 6 설치 (Chocolatey)
+        run: choco install innosetup --no-progress -y
+
+      - name: 인스톨러 컴파일 (ISCC)
+        env:
+          KR_APP_VERSION: ${{ steps.ver.outputs.version }}
+        shell: pwsh
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            Write-Error "ISCC 미설치: $iscc"
+            exit 1
+          }
+          & $iscc "installer\windows\installer.iss"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-ChildItem dist\KRStockScreener-Setup-*.exe
+
+      - name: 인스톨러 아티팩트 업로드 (모든 실행)
+        uses: actions/upload-artifact@v4
+        with:
+          name: KRStockScreener-Setup-${{ steps.ver.outputs.version }}
+          path: dist/KRStockScreener-Setup-*.exe
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: GitHub Release 생성·업로드 (태그 푸시 한정)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: KR Stock Screener ${{ steps.ver.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist/KRStockScreener-Setup-*.exe
