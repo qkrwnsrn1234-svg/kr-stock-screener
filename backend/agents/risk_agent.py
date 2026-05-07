@@ -11,7 +11,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from pykrx import stock
+from backend.utils.pykrx_silent import stock
 
 from . import technical_indicators as ti
 from backend.agents.base_agent import BaseAgent

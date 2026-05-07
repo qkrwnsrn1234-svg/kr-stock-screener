@@ -133,6 +133,8 @@ async def etf_flow_extras_for_dept(dept: str) -> dict[str, Any]:
         "etf_proxy_code": None,
         "etf_proxy_label": None,
         "etf_flow_summary": None,
+        "etf_foreign_inst_netbuy_krw_sum": None,
+        "etf_volume_ratio_vs_ma20": None,
     }
     matched = match_sector_etf(dept)
     if not matched:
@@ -143,9 +145,11 @@ async def etf_flow_extras_for_dept(dept: str) -> dict[str, Any]:
 
     pieces: list[str] = []
     net = await _sum_foreign_institution_netbuy(code)
+    base["etf_foreign_inst_netbuy_krw_sum"] = net
     if net is not None:
         pieces.append(f"최근 구간 외국인+기관 순매수 합 {_fmt_money_krw(net)}")
     vr = await _volume_ratio_ma20(code)
+    base["etf_volume_ratio_vs_ma20"] = vr
     if vr is not None:
         pieces.append(f"거래량 20일 평균 대비 {vr:.2f}배")
 

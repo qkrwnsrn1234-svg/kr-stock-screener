@@ -27,6 +27,15 @@ ECOS_API_BASE = "https://ecos.bok.or.kr/api"
 # 원/달러 매매기준율 일련 — 통계표·항목 코드는 환경에 따라 다를 수 있습니다.
 DEFAULT_STAT_USD_KRW = ("731Y001", "D", "0000001")
 
+# 정책금리(기준금리) 일간 — ECOS 메타 변경 시 포털에서 코드를 재확인하세요.
+DEFAULT_STAT_BASE_RATE = ("722B001", "D", "0101000")
+
+# 소비자물가 전년동월비 등 월간 지표 — 항목 코드가 필요한 통계표는 ECOS 항목 목록으로 확인합니다.
+DEFAULT_STAT_CPI_YOY = ("901Y010", "M", "")
+
+# 제조업 구매관리자지수(PMI) 월간 — 제공 통계가 바뀌면 통계표 코드를 교체할 수 있습니다.
+DEFAULT_STAT_PMI_MFG = ("812Y001", "M", "")
+
 
 def _api_key_fingerprint(api_key: str) -> str:
     """캐시 키용 인증키 지문(비가역)을 생성합니다."""
@@ -130,6 +139,99 @@ def statistic_search(
         str(end_index),
     )
     return load_cached("bok_ecos", key, _fetch, ttl_seconds=ttl_seconds)
+
+
+def fetch_base_rate_daily(
+    start_date: str,
+    end_date: str,
+    *,
+    api_key: str | None = None,
+    ttl_seconds: int = DEFAULT_TTL_SECONDS,
+) -> dict[str, Any]:
+    """
+    한국은행 기준금리(정책금리) 일간 시계열을 조회합니다.
+
+    Args:
+        start_date: 시작일 ``YYYYMMDD``.
+        end_date: 종료일 ``YYYYMMDD``.
+        api_key: ECOS 인증키.
+        ttl_seconds: 캐시 TTL.
+
+    Returns:
+        ECOS JSON 응답.
+    """
+    stat_code, cycle, item_code = DEFAULT_STAT_BASE_RATE
+    return statistic_search(
+        stat_code,
+        cycle,
+        start_date,
+        end_date,
+        item_code=item_code,
+        api_key=api_key,
+        ttl_seconds=ttl_seconds,
+    )
+
+
+def fetch_cpi_yoy_monthly(
+    start_month: str,
+    end_month: str,
+    *,
+    api_key: str | None = None,
+    ttl_seconds: int = DEFAULT_TTL_SECONDS,
+) -> dict[str, Any]:
+    """
+    소비자물가 상승률(전년동월비 등) 월간 시계열을 조회합니다.
+
+    Args:
+        start_month: 시작 월 ``YYYYMM``.
+        end_month: 종료 월 ``YYYYMM``.
+        api_key: ECOS 인증키.
+        ttl_seconds: 캐시 TTL.
+
+    Returns:
+        ECOS JSON 응답.
+    """
+    stat_code, cycle, item_code = DEFAULT_STAT_CPI_YOY
+    return statistic_search(
+        stat_code,
+        cycle,
+        start_month,
+        end_month,
+        item_code=item_code,
+        api_key=api_key,
+        ttl_seconds=ttl_seconds,
+    )
+
+
+def fetch_manufacturing_pmi_monthly(
+    start_month: str,
+    end_month: str,
+    *,
+    api_key: str | None = None,
+    ttl_seconds: int = DEFAULT_TTL_SECONDS,
+) -> dict[str, Any]:
+    """
+    제조업 구매관리자지수(PMI) 등 월간 시계열을 조회합니다.
+
+    Args:
+        start_month: 시작 월 ``YYYYMM``.
+        end_month: 종료 월 ``YYYYMM``.
+        api_key: ECOS 인증키.
+        ttl_seconds: 캐시 TTL.
+
+    Returns:
+        ECOS JSON 응답.
+    """
+    stat_code, cycle, item_code = DEFAULT_STAT_PMI_MFG
+    return statistic_search(
+        stat_code,
+        cycle,
+        start_month,
+        end_month,
+        item_code=item_code,
+        api_key=api_key,
+        ttl_seconds=ttl_seconds,
+    )
 
 
 def fetch_usd_krw_daily(

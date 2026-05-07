@@ -4,6 +4,8 @@ FastAPI 진입점 — 단일 종목 분석, 스크리닝, 포트폴리오 조언
 
 from __future__ import annotations
 
+import backend.utils.pykrx_silent  # noqa: F401  # BUG-4: pykrx import 시 내부 print 억제
+
 import asyncio
 import logging
 import os

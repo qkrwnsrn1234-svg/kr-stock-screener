@@ -16,6 +16,7 @@ from . import technical_indicators as ti
 from backend.agents.base_agent import BaseAgent
 from backend.agents.io_async import fetch_equity_ohlcv_async, fetch_index_ohlcv_async
 from backend.agents.models import AgentResponse
+from backend.screener.sector_etf_flow import etf_flow_extras_for_dept
 
 logger = logging.getLogger(__name__)
 
@@ -60,13 +61,23 @@ class SectorAgent(BaseAgent):
         if tr60_stock is not None and tr60_bench not in (None, 0):
             rel_outperf = tr60_stock - tr60_bench
 
+        etf_extra: dict[str, object] = {}
+        if dept:
+            etf_extra = await etf_flow_extras_for_dept(dept)
+
         signals: dict[str, object] = {
             "sector_proxy": dept or None,
             "listing_market": market or None,
             "total_return_60d": tr60_stock,
             "kospi_total_return_60d": tr60_bench,
             "outperformance_vs_kospi_60d": rel_outperf,
-            "etf_flow_placeholder": "ETF 자금 흐름 연동 예정",
+            "etf_proxy_code": etf_extra.get("etf_proxy_code"),
+            "etf_proxy_label": etf_extra.get("etf_proxy_label"),
+            "etf_flow_summary": etf_extra.get("etf_flow_summary"),
+            "etf_foreign_inst_netbuy_krw_sum": etf_extra.get(
+                "etf_foreign_inst_netbuy_krw_sum"
+            ),
+            "etf_volume_ratio_vs_ma20": etf_extra.get("etf_volume_ratio_vs_ma20"),
         }
 
         score = 0.0
@@ -77,6 +88,18 @@ class SectorAgent(BaseAgent):
             notes.append(f"코스피 대비 60일 초과수익 약 {rel_outperf*100:.1f}%p")
             score += float(max(-18.0, min(18.0, rel_outperf * 80)))
 
+        net_etf = etf_extra.get("etf_foreign_inst_netbuy_krw_sum")
+        if isinstance(net_etf, (int, float)):
+            if net_etf > 0:
+                notes.append("대표 업종 ETF 외국인+기관 순매수 합이 양(근사)")
+                score += min(8.0, 6.0)
+            elif net_etf < 0:
+                notes.append("대표 업종 ETF 외국인+기관 순매수 합이 음(근사)")
+                score -= min(8.0, 4.0)
+        vr = etf_extra.get("etf_volume_ratio_vs_ma20")
+        if isinstance(vr, (int, float)) and vr > 1.35:
+            notes.append("대표 업종 ETF 거래량이 20일 평균 대비 활발")
+            score += 4.0
         opinion = "중립"
         if score >= 10:
             opinion = "매수"

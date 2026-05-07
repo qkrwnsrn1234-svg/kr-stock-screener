@@ -14,10 +14,9 @@ import math
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from pykrx import stock
-
 from backend.agents.base_agent import BaseAgent
 from backend.agents.models import AgentResponse
+from backend.utils.pykrx_silent import stock
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +105,9 @@ _DART_ACCT_MAP = {
     "net_income": ["당기순이익", "분기순이익"],
     "depreciation": ["감가상각비"],
     "cash_equiv": ["현금및현금성자산", "현금및예치금"],
+    # Piotroski·매직포뮬러용 (퀀트 에이전트)
+    "gross_profit": ["매출총이익"],
+    "ppe_net": ["유형자산"],
 }
 
 
@@ -275,6 +277,21 @@ async def _lookup_dart_financials(ticker: str) -> tuple[dict[str, float | None],
             except Exception as exc:
                 logger.debug("DART 재무 조회 실패 %s %s %s: %s", ticker, bsns_year, fs_div, exc)
     return {}, meta
+
+
+async def fetch_dart_financial_snapshot(
+    ticker: str,
+) -> tuple[dict[str, float | None], dict[str, str]]:
+    """
+    DART 재무 스냅샷을 퀀트 등 다른 에이전트에서 재사용할 수 있도록 공개합니다.
+
+    Args:
+        ticker: 6자리 종목코드.
+
+    Returns:
+        ``_lookup_dart_financials`` 와 동일 형태.
+    """
+    return await _lookup_dart_financials(ticker)
 
 
 class FinancialAgent(BaseAgent):

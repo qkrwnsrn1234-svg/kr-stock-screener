@@ -11,9 +11,9 @@ from datetime import date, datetime
 from typing import Literal
 
 import pandas as pd
-from pykrx import stock
 
 from backend.data.cache import DEFAULT_TTL_SECONDS, build_cache_key, load_cached
+from backend.utils.pykrx_silent import stock
 
 logger = logging.getLogger(__name__)
 

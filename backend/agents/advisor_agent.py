@@ -46,6 +46,8 @@ class AdvisorAgent(BaseAgent):
         norm_weights = {k: v / total_w for k, v in weights.items()}
 
         hhi = sum(w * w for w in norm_weights.values())
+        max_w = max(norm_weights.values()) if norm_weights else 0.0
+        eff_n = (1.0 / hhi) if hhi > 0 else 1.0
 
         vol_map: dict[str, float | None] = {}
         for t in list(norm_weights.keys())[:12]:
@@ -79,6 +81,14 @@ class AdvisorAgent(BaseAgent):
         else:
             notes.append(f"집중도(HHI) 양호({hhi:.2f})")
 
+        notes.append(f"유효 보유 종목 수(1/HHI 근사)≈{eff_n:.1f}개, 최대 비중≈{max_w*100:.1f}%")
+        if max_w > 0.45:
+            notes.append("단일 종목 비중이 매우 큼 — 리스크 집중")
+            score -= 8
+        elif max_w > 0.32:
+            notes.append("단일 종목 비중이 큼 — 비중 조절 검토")
+            score -= 4
+
         if risk_penalty > 0.28:
             notes.append("가중 변동성 부담 큼 — 리스크 예산 점검")
             score -= 12
@@ -94,6 +104,8 @@ class AdvisorAgent(BaseAgent):
             "weights_normalized": norm_weights,
             "suggested_equal_weights": suggestion,
             "weighted_vol_proxy": risk_penalty,
+            "effective_num_holdings_approx": round(eff_n, 2),
+            "max_single_weight": round(max_w, 4),
         }
 
         reasoning = "; ".join(notes)

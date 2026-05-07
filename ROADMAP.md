@@ -7,11 +7,11 @@
 
 ## 📍 현재 작업 위치 (항상 여기를 먼저 확인)
 
-**현재 Phase**: Phase 1-4 에이전트 세부 지표 보강 (재무 완료 → 리스크/퀀트 다음)
-**현재 브랜치**: feature/phase4-scheduler-docker
-**다음 할 일**: 퀀트(Magic Formula·F-Score 정식화) 또는 거시(금리·CPI·환율 연동) 중 선택 — 리스크 에이전트(Altman Z·공매도 비율·시나리오·포지션 힌트) 보강 반영됨
+**현재 Phase**: Phase 1-4 에이전트 세부 지표 보강 (퀀트·거시·섹터·포트폴리오 일부 반영)
+**현재 브랜치**: main
+**다음 할 일**: ECOS 통계표 코드 현장 검증(API 키로 스모크), Fed/DXY·섹터 집중도 심화, 스크리닝-퀀트 시그널 추가 정합
 **최종 배포 목표**: Phase 5 — `make build-desktop && make install` 로 `/Applications` 설치·첫 실행 보안 안내까지 반영
-**마지막 커밋**: feat(agents): 리스크 에이전트 Altman Z·공매도 비율·하방 시나리오·포지션 힌트
+**마지막 커밋**: (이번 세션) pykrx 로그 억제, ECOS 금리·CPI·PMI, 퀀트 F-Score/매직포뮬러, 섹터 ETF·어드바이저, make install-only
 
 ---
 
@@ -107,11 +107,13 @@
 
 #### 거시경제 분석가 (macro_agent.py)
 담당 지표:
-- [ ] 기준금리 동향 (Fed + 한국은행)
-- [ ] CPI/인플레이션 — 금리 방향 예측
-- [ ] PMI — 경기 확장/수축 판단
-- [ ] 환율 (원/달러, DXY) — 수출기업 영향
-- [ ] 국제 정세/지정학 리스크 — 방산/에너지 수혜
+- [x] 기준금리 동향 (한국은행 ECOS)
+- [ ] 기준금리 동향 (Fed — 미연동)
+- [x] CPI/인플레이션 — ECOS 전년동월비 흐름
+- [x] PMI — ECOS 제조업 PMI(통계표 코드는 현장 검증 권장)
+- [x] 환율 (원/달러, ECOS)
+- [ ] 환율 (DXY — 미연동)
+- [x] 국제 정세/지정학 리스크 — Claude commentary
 - [ ] 섹터별 금리 민감도 분석
 
 #### 기술적 분석가 (technical_agent.py)
@@ -135,26 +137,26 @@
 
 #### 섹터 전문가 (sector_agent.py)
 담당 지표:
-- [ ] 섹터 모멘텀 — 현재 주도 섹터 판단
-- [ ] ETF 자금흐름 — 기관 관심 섹터 추적
+- [x] 섹터 모멘텀 — 종목 60일 수익 vs 코스피
+- [x] ETF 자금흐름 — 업종 대표 ETF 외국인·기관 순매수·거래량 (`sector_etf_flow`)
 - [ ] 어닝 리비전 방향성 — 섹터 선행 신호
 - [ ] 경쟁사 대비 상대강도
 - [ ] 업종 평균 PER/PBR 비교
 
 #### 퀀트 전략가 (quant_agent.py)
 담당 지표:
-- [ ] Piotroski F-Score (0~9점, 7+ 우량)
-- [ ] Magic Formula (Greenblatt) — ROIC + EV/EBIT 순위
-- [ ] 멀티팩터 스코어 (가치+모멘텀+퀄리티+저변동성)
+- [x] Piotroski F-Score (0~9, DART 기반; F7 유상증자 증빙 없으면 보수적 0점)
+- [x] Magic Formula — 단일 종목 EBIT/EV·EBIT/(NWC+PPE) (`magic_formula`; 전종목 순위는 배치)
+- [ ] 멀티팩터 스코어 (가치+모멘텀+퀄리티+저변동성) 전종목 통합
 - [ ] 컨센서스 괴리율 — 목표주가 대비 현재가
 - [ ] 어닝 서프라이즈 이력
 - [ ] 내부자 거래 신호 (대주주 매입/매도)
 
 #### 포트폴리오 조언자 (advisor_agent.py)
 담당 역할:
-- [ ] 현재 보유 종목 전체 리스크 진단
+- [x] 현재 보유 종목 전체 리스크 진단 (HHI·가중 변동성·최대 비중·유효 종목 수 근사)
 - [ ] 섹터 쏠림 경고
-- [ ] 종목별 비중 조절 제안
+- [x] 종목별 비중 조절 제안 (동일가중 제안 + 과집중 페널티)
 - [ ] 매수/매도/홀딩 우선순위 조언
 - [ ] 시장 국면별 방어 전략 제시
 
@@ -181,7 +183,7 @@
 - [x] PER 점수 (업종 중앙값 대비 정규화)
 - [x] PBR 점수
 - [x] FCF Yield 점수 (현재 중립 50점·연동 예정)
-- [x] F-Score 반영 (퀀트 에이전트 `piotroski_like`)
+- [x] F-Score 반영 (퀀트 에이전트 `piotroski_f_score`, 구 `piotroski_like` 호환)
 - [x] 종합 가중 합산 로직 (`/screen` 응답 `undervalue_breakdown`)
 
 ### 오버히트 알럿 시스템
@@ -230,15 +232,9 @@
       ```
 
 #### [BUG-4] pykrx 라이브러리 내부 `print()` 경고 출력
-- [ ] 앱/서버 시작 시 `"KRX 로그인 실패: KRX_ID 또는 KRX_PW 환경 변수가 설정되지 않았습니다."` 출력
-      — 원인: pykrx 라이브러리 내부 코드(`pykrx/website/comm/auth.py:185`)의 `print()` 직접 호출
-      — 해결: pykrx 최초 임포트 시 `contextlib.redirect_stdout` 로 stdout 일시 억제
-      — 예시: `backend/__init__.py` 또는 `backend/main.py` 상단에서 처리
-      ```python
-      import contextlib, io
-      with contextlib.redirect_stdout(io.StringIO()):
-          import pykrx  # 내부 print() 흡수
-      ```
+- [x] 앱/서버 시작 시 `"KRX 로그인 실패: ..."` 출력
+      — 원인: pykrx 라이브러리 내부 ``print()`` 직접 호출
+      — 해결: ``backend/utils/pykrx_silent.py`` + ``backend/main.py`` 선행 import, 데이터/에이전트는 ``from backend.utils.pykrx_silent import stock``
 
 ### 품질 개선 — 기획-구현 갭
 
@@ -382,6 +378,7 @@
 - [x] macOS 첫 실행 보안 경고 우회 문서화 (`README.md` — “macOS 첫 실행 시 보안 승인” 섹션)
       — 서명되지 않은 앱은 최초 1회만: Finder에서 우클릭 → "열기" → "열기" 확인
       — 이후부터는 더블클릭만으로 실행
+- [x] `make install-only` — 기존 `dist/KRStockScreener.app` 만 `/Applications` 로 복사 (재빌드 생략)
 - [ ] GitHub Actions CI: 태그 푸시 시 자동 빌드 + Releases 업로드 (선택)
 
 ### 5-5. 최종 실행 방법 (완성 후 사용자 흐름)

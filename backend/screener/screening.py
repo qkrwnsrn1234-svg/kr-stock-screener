@@ -79,10 +79,10 @@ def _pbr_component(stock_pbr: float | None, peer_med: float | None) -> float:
     return _ratio_value_score(stock_pbr / peer_med)
 
 
-def _fscore_component(piotroski_like: int | None) -> float:
-    if piotroski_like is None:
+def _fscore_component(piotroski_points: int | None) -> float:
+    if piotroski_points is None:
         return 50.0
-    p = max(0, min(9, int(piotroski_like)))
+    p = max(0, min(9, int(piotroski_points)))
     return float(p) / 9.0 * 100.0
 
 
@@ -93,7 +93,9 @@ def _build_undervalue_breakdown(
 ) -> UndervalueBreakdown:
     stock_per = _safe_float(fin_sig.get("per"))
     stock_pbr = _safe_float(fin_sig.get("pbr"))
-    p_like = quant_sig.get("piotroski_like")
+    p_like = quant_sig.get("piotroski_f_score")
+    if p_like is None:
+        p_like = quant_sig.get("piotroski_like")
     pi_int: int | None
     try:
         pi_int = int(p_like) if p_like is not None else None

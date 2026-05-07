@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
-from pykrx import stock
+from backend.utils.pykrx_silent import stock
 
 from backend.agents.financial_agent import _lookup_fundamentals
 from backend.data import finance_data
