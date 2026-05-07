@@ -11,7 +11,7 @@
 **현재 브랜치**: main
 **다음 할 일**: ECOS 통계표 코드 현장 검증(API 키로 스모크), Fed/DXY·섹터 집중도 심화, 스크리닝-퀀트 시그널 추가 정합
 **최종 배포 목표**: Phase 5 — `make build-desktop && make install` 로 `/Applications` 설치·첫 실행 보안 안내까지 반영
-**마지막 커밋**: f625102 — pykrx 로그 억제, ECOS 금리·CPI·PMI, 퀀트 F-Score/매직포뮬러, 섹터 ETF·어드바이저, make install-only
+**마지막 커밋**: 3f9113f (기능 f625102 — pykrx 억제·ECOS·퀀트·섹터 ETF·install-only)
 
 ---
 
