@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { analyzeTicker } from "@/api/client";
 import { ConfidencePie } from "@/components/ConfidencePie";
+import { QuantSignalCards, shouldHideQuantSignalsRaw } from "@/components/QuantSignalCards";
 import type { CEOReport } from "@/types/api";
 
 function opinionClass(op: string): string {
@@ -98,6 +99,7 @@ export function AnalyzePage() {
               ) : null}
             </div>
           </div>
+          <QuantSignalCards report={report} />
           <div className="card agent-list">
             <h2>에이전트별 의견</h2>
             {report.agent_reports.map((a) => (
@@ -110,7 +112,7 @@ export function AnalyzePage() {
                   </span>
                 </summary>
                 <p style={{ margin: "0.5rem 0" }}>{a.reasoning}</p>
-                {Object.keys(a.signals).length > 0 ? (
+                {Object.keys(a.signals).length > 0 && !shouldHideQuantSignalsRaw(a) ? (
                   <pre
                     style={{
                       fontSize: "0.75rem",
@@ -122,6 +124,11 @@ export function AnalyzePage() {
                   >
                     {JSON.stringify(a.signals, null, 2)}
                   </pre>
+                ) : null}
+                {shouldHideQuantSignalsRaw(a) ? (
+                  <p className="muted" style={{ fontSize: "0.85rem", marginTop: "0.35rem" }}>
+                    상세 수치는 위 <strong>퀀트 시그널</strong> 카드에 정리되어 있습니다.
+                  </p>
                 ) : null}
               </details>
             ))}

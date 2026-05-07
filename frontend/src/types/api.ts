@@ -10,6 +10,45 @@ export interface AgentResponse {
   timestamp: string;
 }
 
+/** 퀀트 `consensus_gap_proxy` — 동종 PER/PBR 중앙값 기준 내재가 vs 현재가 */
+export interface ConsensusGapProxy {
+  note?: string;
+  median_per_implied_price?: number | null;
+  median_pbr_implied_price?: number | null;
+  current_price_krw?: number | null;
+  gap_pct_vs_median_per?: number | null;
+  gap_pct_vs_median_pbr?: number | null;
+  blended_gap_pct?: number | null;
+  peer_sector?: string | null;
+  peer_count?: number | null;
+}
+
+export interface AnnualNetIncomeRow {
+  year: number;
+  net_income_krw: number;
+  fs_div?: string;
+  yoy_pct?: number | null;
+}
+
+/** 퀀트 `earnings_surprise_proxy` — 연간 순이익 YoY·가속도(컨센 서프라이즈는 별도 데이터) */
+export interface EarningsSurpriseProxy {
+  annual_net_income: AnnualNetIncomeRow[];
+  yoy_acceleration_pp?: number | null;
+  positive_yoy_streak_years?: number;
+  interpretation_note?: string;
+}
+
+/** 퀀트 `insider_disclosure_hints` — 공시 제목 휴리스틱 */
+export interface InsiderDisclosureHints {
+  window_days?: number;
+  buy_like_disclosure_titles?: number;
+  sell_like_disclosure_titles?: number;
+  major_holder_related_titles?: number;
+  sample_titles?: string[];
+  heuristic_bias?: string;
+  note?: string;
+}
+
 export interface UndervalueBreakdown {
   per_score: number;
   pbr_score: number;

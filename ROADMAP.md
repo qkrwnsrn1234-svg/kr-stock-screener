@@ -11,7 +11,7 @@
 **현재 브랜치**: main
 **다음 할 일**: [GAP-1] 재무 에이전트 Claude 확대(선택) / [3-2] 관심종목 그룹 태그(선택) / Phase 5 Windows·Release CI(선택)
 **최종 배포 목표**: Phase 5 — `make build-desktop && make install` 로 `/Applications` 설치·첫 실행 보안 안내까지 반영
-**마지막 커밋**: 퀀트 괴리율·실적 YoY·공시 기반 내부자 힌트 시그널 추가
+**마지막 커밋**: 분석 화면 퀀트 시그널 카드 UI (`QuantSignalCards`)
 
 ---
 
@@ -320,6 +320,7 @@
 - [x] 섹터 히트맵
 - [x] 에이전트 성적표 대시보드
 - [x] 포트폴리오 조언 화면
+- [x] 분석 화면 퀀트 시그널 카드 (`QuantSignalCards`: 동종 괴리·연간 YoY·공시 힌트)
 
 ---
 
