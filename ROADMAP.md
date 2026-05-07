@@ -11,7 +11,7 @@
 **현재 브랜치**: feature/phase4-scheduler-docker
 **다음 할 일**: 리스크(Altman Z-Score·공매도 정교화) 또는 퀀트(Magic Formula 랭킹) 중 선택
 **최종 배포 목표**: Phase 5 — `make build-desktop && make install` 로 `/Applications` 설치·첫 실행 보안 안내까지 반영
-**마지막 커밋**: feat(agents): 재무 에이전트 PEG·EV/EBITDA·ROIC·FCF Yield·DCF 등 지표 보강
+**마지막 커밋**: feat(desktop): PyObjC·pywebview 번들 보강, make install·README 보안 안내
 
 ---
 
