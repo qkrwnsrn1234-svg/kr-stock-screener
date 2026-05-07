@@ -18,6 +18,22 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+def _ensure_stdio_for_frozen_windowed() -> None:
+    """
+    PyInstaller ``console=False`` 번들에서 ``sys.stdout`` / ``sys.stderr`` 가 ``None`` 일 때
+    일부 라이브러리가 ``.write()`` 로 크래시하는 것을 막습니다 (주로 Windows).
+    """
+    if not getattr(sys, "frozen", False):
+        return
+    try:
+        if sys.stdout is None:
+            sys.stdout = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+        if sys.stderr is None:
+            sys.stderr = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+    except OSError:
+        pass
+
+
 def _ensure_repo_on_path() -> Path:
     """``backend`` 임포트를 위해 프로젝트 루트(번들이면 ``_MEIPASS``)를 ``sys.path`` 앞에 둡니다."""
     if getattr(sys, "frozen", False) and getattr(sys, "_MEIPASS", None):
@@ -79,6 +95,7 @@ def _uvicorn_worker(bind_host: str, port: int, log_level: str, access_log: bool)
     ``multiprocessing`` spawn 시 자식 인터프리터가 임포트할 수 있도록
     모듈 최상단에 가깝게 두었습니다.
     """
+    _ensure_stdio_for_frozen_windowed()
     import uvicorn
 
     uvicorn.run(
@@ -94,6 +111,7 @@ def _uvicorn_worker(bind_host: str, port: int, log_level: str, access_log: bool)
 
 def main() -> None:
     """환경을 읽고 uvicorn 을 띄운 뒤 pywebview 창을 엽니다."""
+    _ensure_stdio_for_frozen_windowed()
     from desktop.frozen_env import apply_frozen_runtime, user_data_dir
 
     apply_frozen_runtime()
