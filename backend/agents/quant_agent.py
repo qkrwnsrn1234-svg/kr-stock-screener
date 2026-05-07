@@ -3,11 +3,18 @@
 
 Piotroski F-Score(재무제표 기반 9항목), Greenblatt 매직포뮬러 요소(EBIT/EV·EBIT/투하자본),
 가격 기반 모멘텀·변동성 보정을 결합합니다.
+
+동종 PER/PBR 중앙값 기반 괴리(컨센서스 대용), 연간 당기순이익 YoY 가속도,
+DART 공시명 키워드 기반 내부자·자사주 힌트를 보조 시그널로 포함합니다.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import re
+from datetime import date, timedelta
+from typing import Any
 
 import pandas as pd
 
@@ -16,12 +23,34 @@ from backend.agents.base_agent import BaseAgent
 from backend.agents.financial_agent import (
     _lookup_fundamentals,
     _lookup_market_cap_krw,
+    _parse_dart_financials,
     fetch_dart_financial_snapshot,
 )
 from backend.agents.io_async import fetch_equity_ohlcv_async
 from backend.agents.models import AgentResponse
+from backend.screener.peer_valuation import fetch_sector_peer_stats
 
 logger = logging.getLogger(__name__)
+
+# 공시명에서 자사주·지배주주 쪽 매수/매도 성격을 짐작할 때 쓰는 키워드 (완전한 NLP 대체 아님)
+_DART_TITLE_BUY_HINT = re.compile(
+    r"(자기주식\s*취득|자기주식취득|취득\s*결과|소유(?:지분|주식)\s*증가|매수\s*목적의\s*취득)",
+    re.I,
+)
+_DART_TITLE_SELL_HINT = re.compile(
+    r"(자기주식\s*처분|자기주식처분|처분\s*결과|소유(?:지분|주식)\s*감소)",
+    re.I,
+)
+_DART_TITLE_MAJOR_HOLDER = re.compile(
+    r"(임원[·ㆍ]주요주주|주요주주|특정증권등\s*소유상황|대량보유상황)",
+    re.I,
+)
+
+# 연간 실적 이력 조회 시 최대 연도 수 (사업보고서 11011)
+_ANNUAL_NI_LOOKBACK_YEARS = 5
+# 내부자 공시 힌트 조회 기간 및 최대 페이지
+_INSIDER_DISCLOSURE_DAYS = 200
+_INSIDER_MAX_PAGES = 5
 
 
 def _piotroski_f_score(d: dict[str, float | None]) -> tuple[int, dict[str, bool]]:
@@ -202,6 +231,264 @@ def _magic_formula_metrics(
     }
 
 
+async def _resolve_corp_code(ticker: str) -> str | None:
+    """DART corp_code를 조회합니다. 키가 없으면 None."""
+    try:
+        from backend.data import dart_data
+
+        return await asyncio.to_thread(dart_data.find_corp_code, ticker)
+    except Exception as exc:
+        logger.debug("DART corp_code 조회 불가 %s: %s", ticker, exc)
+        return None
+
+
+def _last_close_price_krw(close: pd.Series) -> float | None:
+    """종가 시계열의 최신 유효 가격(원)을 반환합니다."""
+    if close is None or close.empty:
+        return None
+    try:
+        v = float(close.iloc[-1])
+    except (TypeError, ValueError):
+        return None
+    if v <= 0 or v != v:  # NaN
+        return None
+    return v
+
+
+async def _peer_consensus_gap_proxy(
+    code: str,
+    fundamentals: dict[str, Any] | None,
+    last_price: float | None,
+) -> dict[str, Any]:
+    """
+    컨센서스 목표주가 대신 동종 PER/PBR 중앙값으로 내재가를 근사하고 현재가 대비 괴리율을 냅니다.
+
+    Args:
+        code: 6자리 종목코드.
+        fundamentals: pykrx 펀더멘털 스냅샷.
+        last_price: 최근 종가(원).
+
+    Returns:
+        괴리율·동종 통계 메타.
+    """
+    note = (
+        "증권사 목표주가 컨센서스가 아니라, 동일 Dept 동종 PER·PBR 중앙값 기준 근사입니다."
+    )
+    out: dict[str, Any] = {
+        "note": note,
+        "median_per_implied_price": None,
+        "median_pbr_implied_price": None,
+        "current_price_krw": last_price,
+        "gap_pct_vs_median_per": None,
+        "gap_pct_vs_median_pbr": None,
+        "blended_gap_pct": None,
+        "peer_sector": None,
+        "peer_count": None,
+    }
+    if not fundamentals or last_price is None or last_price <= 0:
+        return out
+
+    peer = await fetch_sector_peer_stats(code)
+    out["peer_sector"] = peer.sector_label
+    out["peer_count"] = peer.peer_count
+
+    eps = fundamentals.get("eps")
+    bps = fundamentals.get("bps")
+    gap_values: list[float] = []
+
+    if (
+        isinstance(eps, (int, float))
+        and float(eps) > 0
+        and peer.median_per is not None
+        and peer.median_per > 0
+    ):
+        implied = float(eps) * float(peer.median_per)
+        out["median_per_implied_price"] = implied
+        gap_p = (implied - last_price) / last_price * 100.0
+        out["gap_pct_vs_median_per"] = round(gap_p, 2)
+        gap_values.append(gap_p)
+
+    if (
+        isinstance(bps, (int, float))
+        and float(bps) > 0
+        and peer.median_pbr is not None
+        and peer.median_pbr > 0
+    ):
+        implied_b = float(bps) * float(peer.median_pbr)
+        out["median_pbr_implied_price"] = implied_b
+        gap_b = (implied_b - last_price) / last_price * 100.0
+        out["gap_pct_vs_median_pbr"] = round(gap_b, 2)
+        gap_values.append(gap_b)
+
+    if gap_values:
+        out["blended_gap_pct"] = round(sum(gap_values) / len(gap_values), 2)
+    return out
+
+
+async def _annual_net_income_history_for_surprise_proxy(corp_code: str) -> dict[str, Any]:
+    """
+    사업보고서(11011)에서 연간 당기순이익과 YoY, 가속도를 만듭니다.
+
+    Args:
+        corp_code: DART 법인 고유번호.
+
+    Returns:
+        연도별 순이익·YoY·가속도(퍼센트포인트).
+    """
+    from backend.data import dart_data
+
+    rows_out: list[dict[str, Any]] = []
+    y0 = date.today().year
+    for offset in range(0, _ANNUAL_NI_LOOKBACK_YEARS):
+        ystr = str(y0 - offset)
+        picked: dict[str, Any] | None = None
+        for fs_div in ("CFS", "OFS"):
+            try:
+                raw = await asyncio.to_thread(
+                    dart_data.fetch_financial_accounts,
+                    corp_code,
+                    ystr,
+                    "11011",
+                    fs_div=fs_div,
+                )
+                dart_rows: list[dict[str, Any]] = raw.get("list") or []
+                if not dart_rows:
+                    continue
+                parsed = _parse_dart_financials(dart_rows)
+                ni = parsed.get("net_income")
+                if ni is None:
+                    continue
+                picked = {
+                    "year": int(ystr),
+                    "net_income_krw": float(ni),
+                    "fs_div": fs_div,
+                }
+                break
+            except Exception as exc:
+                logger.debug(
+                    "연간 순이익 조회 실패 corp=%s year=%s: %s", corp_code, ystr, exc
+                )
+                continue
+        if picked:
+            rows_out.append(picked)
+
+    rows_out.sort(key=lambda r: r["year"])
+    yoys: list[float] = []
+    for i in range(1, len(rows_out)):
+        prev = float(rows_out[i - 1]["net_income_krw"])
+        cur = float(rows_out[i]["net_income_krw"])
+        if prev == 0:
+            yoy: float | None = None
+        else:
+            yoy = (cur - prev) / abs(prev) * 100.0
+        rows_out[i]["yoy_pct"] = round(yoy, 2) if yoy is not None else None
+        if yoy is not None:
+            yoys.append(float(yoy))
+
+    accel: float | None = None
+    if len(yoys) >= 2:
+        accel = round(yoys[-1] - yoys[-2], 2)
+
+    streak = 0
+    for r in reversed(rows_out):
+        y = r.get("yoy_pct")
+        if y is None:
+            break
+        if float(y) > 0:
+            streak += 1
+        else:
+            break
+
+    return {
+        "annual_net_income": rows_out,
+        "yoy_acceleration_pp": accel,
+        "positive_yoy_streak_years": streak,
+        "interpretation_note": (
+            "실제 어닝 서프라이즈(컨센서스 대비)는 별도 데이터가 필요합니다. "
+            "여기서는 연간 순이익 YoY와 가속도만 제공합니다."
+        ),
+    }
+
+
+def _disclosure_title(item: dict[str, Any]) -> str:
+    """DART 공시 목록 행에서 제목 문자열을 꺼냅니다."""
+    return str(
+        item.get("report_nm")
+        or item.get("rcept_nm")
+        or item.get("title")
+        or ""
+    ).strip()
+
+
+async def _insider_disclosure_hints(corp_code: str) -> dict[str, Any]:
+    """
+    최근 공시 제목에서 자사주·주요주주 관련 키워드를 세어 휴리스틱 힌트를 반환합니다.
+
+    Args:
+        corp_code: DART 법인 고유번호.
+
+    Returns:
+        매수/매도 성격으로 보이는 공시 건수 등.
+    """
+    from backend.data import dart_data
+
+    end = date.today()
+    start = end - timedelta(days=_INSIDER_DISCLOSURE_DAYS)
+    start_s = start.strftime("%Y%m%d")
+    end_s = end.strftime("%Y%m%d")
+
+    buy_like = 0
+    sell_like = 0
+    major = 0
+    samples: list[str] = []
+
+    for page in range(1, _INSIDER_MAX_PAGES + 1):
+        try:
+            data = await asyncio.to_thread(
+                dart_data.fetch_disclosure_list,
+                corp_code,
+                start_s,
+                end_s,
+                page_no=page,
+                page_count=100,
+            )
+        except Exception as exc:
+            logger.debug("공시 목록 조회 실패 page=%s: %s", page, exc)
+            break
+        lst = data.get("list") or []
+        for it in lst:
+            title = _disclosure_title(it)
+            if not title:
+                continue
+            if _DART_TITLE_BUY_HINT.search(title):
+                buy_like += 1
+            if _DART_TITLE_SELL_HINT.search(title):
+                sell_like += 1
+            if _DART_TITLE_MAJOR_HOLDER.search(title):
+                major += 1
+                if len(samples) < 5:
+                    samples.append(title[:120])
+        if len(lst) < 100:
+            break
+
+    bias = "중립"
+    if buy_like + sell_like >= 2:
+        if buy_like >= sell_like * 1.5:
+            bias = "매수성_공시_다소_많음"
+        elif sell_like >= buy_like * 1.5:
+            bias = "매도성_공시_다소_많음"
+
+    return {
+        "window_days": _INSIDER_DISCLOSURE_DAYS,
+        "buy_like_disclosure_titles": buy_like,
+        "sell_like_disclosure_titles": sell_like,
+        "major_holder_related_titles": major,
+        "sample_titles": samples,
+        "heuristic_bias": bias,
+        "note": "공시 제목 패턴 휴리스틱이며 법적 매수·매도 판단이 아닙니다.",
+    }
+
+
 class QuantAgent(BaseAgent):
     """퀀트 전략가 에이전트."""
 
@@ -233,6 +520,33 @@ class QuantAgent(BaseAgent):
             mcap = await _lookup_market_cap_krw(code, basis, mkt_s)
             if mcap is not None:
                 fundamentals["market_cap_krw"] = mcap
+
+        last_px = _last_close_price_krw(close)
+        consensus_gap = await _peer_consensus_gap_proxy(
+            code, dict(fundamentals) if fundamentals else None, last_px
+        )
+        corp_code = await _resolve_corp_code(code)
+        if corp_code:
+            earnings_proxy, insider_hints = await asyncio.gather(
+                _annual_net_income_history_for_surprise_proxy(corp_code),
+                _insider_disclosure_hints(corp_code),
+            )
+        else:
+            earnings_proxy = {
+                "annual_net_income": [],
+                "yoy_acceleration_pp": None,
+                "positive_yoy_streak_years": 0,
+                "interpretation_note": "DART corp_code 없음 또는 API 키 미설정으로 실적 이력을 생략했습니다.",
+            }
+            insider_hints = {
+                "window_days": _INSIDER_DISCLOSURE_DAYS,
+                "buy_like_disclosure_titles": 0,
+                "sell_like_disclosure_titles": 0,
+                "major_holder_related_titles": 0,
+                "sample_titles": [],
+                "heuristic_bias": "중립",
+                "note": "DART corp_code 없음 또는 API 키 미설정",
+            }
 
         # Piotroski·매직포뮬러(DART 필요)
         pi_total = 0
@@ -276,6 +590,34 @@ class QuantAgent(BaseAgent):
         mf_composite = multifactor["composite_0_100"]
         score += (mf_composite - 50.0) * 0.12
 
+        blend_gap = consensus_gap.get("blended_gap_pct")
+        if isinstance(blend_gap, (int, float)):
+            if blend_gap > 15.0:
+                score += 6.0
+            elif blend_gap > 8.0:
+                score += 3.0
+            elif blend_gap < -18.0:
+                score -= 5.0
+            elif blend_gap < -10.0:
+                score -= 2.5
+
+        acc_pp = earnings_proxy.get("yoy_acceleration_pp")
+        if isinstance(acc_pp, (int, float)):
+            if acc_pp > 5.0:
+                score += 5.0
+            elif acc_pp > 2.0:
+                score += 2.5
+            elif acc_pp < -8.0:
+                score -= 4.0
+
+        b_dis = int(insider_hints.get("buy_like_disclosure_titles") or 0)
+        s_dis = int(insider_hints.get("sell_like_disclosure_titles") or 0)
+        if b_dis + s_dis >= 3:
+            if b_dis >= s_dis * 1.5:
+                score += 3.0
+            elif s_dis >= b_dis * 1.5:
+                score -= 2.5
+
         pq_notes: list[str] = []
         if dart_ok:
             pq_notes.append(f"Piotroski F-Score={pi_total}/9")
@@ -289,6 +631,19 @@ class QuantAgent(BaseAgent):
         pq_notes.append(
             f"멀티팩터(가치·모멘텀·퀄·저변동) 복합≈{multifactor['composite_0_100']:.0f}/100"
         )
+
+        if isinstance(blend_gap, (int, float)):
+            pq_notes.append(f"동종밸류괴리(blended)≈{blend_gap:+.1f}% (PER/PBR 중앙값 근사)")
+        acc_note = earnings_proxy.get("yoy_acceleration_pp")
+        if isinstance(acc_note, (int, float)):
+            pq_notes.append(f"순이익 YoY 가속도≈{acc_note:+.1f}pp")
+        streak_n = earnings_proxy.get("positive_yoy_streak_years")
+        if isinstance(streak_n, int) and streak_n >= 2:
+            pq_notes.append(f"순이익 YoY 플러스 연속 {streak_n}년 힌트")
+        if b_dis + s_dis >= 2:
+            pq_notes.append(
+                f"공시 제목 휴리스틱: 매수연계{b_dis} / 매도연계{s_dis} (자사주·주요주주)"
+            )
 
         if fundamentals:
             rpp = fundamentals.get("roe_proxy_pct")
@@ -306,6 +661,9 @@ class QuantAgent(BaseAgent):
             "volatility_ann_60d": vol_ann,
             "fundamentals_available": bool(fundamentals),
             "dart_financials_available": dart_ok,
+            "consensus_gap_proxy": consensus_gap,
+            "earnings_surprise_proxy": earnings_proxy,
+            "insider_disclosure_hints": insider_hints,
         }
         if fundamentals:
             signals["pykrx_fundamentals"] = fundamentals
