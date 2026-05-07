@@ -7,9 +7,9 @@
 
 ## 📍 현재 작업 위치 (항상 여기를 먼저 확인)
 
-**현재 Phase**: Phase 5 데스크톱·단일 서버 패키징 진행 중
+**현재 Phase**: Phase 5 데스크톱·단일 서버 패키징 진행 중 (Phase 1-4 재무 지표 보강 병행)
 **현재 브랜치**: feature/phase4-scheduler-docker
-**다음 할 일**: (선택) 태그 푸시 시 PyInstaller 빌드·GitHub Releases 자동화, 또는 Phase 1 데이터/지표 보강
+**다음 할 일**: 리스크/퀀트/섹터 에이전트 세부 지표 보강, 또는 (선택) PyInstaller CI·Releases 자동화
 **최종 배포 목표**: Phase 5 — pywebview + PyInstaller로 macOS .app / Windows .exe 패키징
 **마지막 커밋**: PyInstaller `desktop/app.spec`, 빌드 스크립트·frozen 경로·캐시 `KR_STOCK_CACHE_DIR`
 
@@ -54,23 +54,23 @@
 
 ### 1-4. 각 에이전트 구현 (backend/agents/)
 
-**코드 반영(1차):** `financial_agent`, `macro_agent`, `technical_agent`, `risk_agent`, `sector_agent`, `quant_agent`, `advisor_agent`, `ceo_agent`(CEOOrchestrator·CEOReport) 규칙 기반 구현 완료. OHLCV·가능 시 pykrx·ECOS 사용. 아래 세부 지표 체크는 데이터 보강과 함께 단계적으로 진행합니다.
+**코드 반영(1차):** `financial_agent`, `macro_agent`, `technical_agent`, `risk_agent`, `sector_agent`, `quant_agent`, `advisor_agent`, `ceo_agent`(CEOOrchestrator·CEOReport) 규칙 기반 구현 완료. OHLCV·가능 시 pykrx·ECOS 사용. **재무 에이전트 2차:** DART 당·전기 확장, 이자부차입·현금, PEG·EV/EBITDA·ROIC·FCF Yield·영업이익률 추세·간이 DCF(`financial_agent.py`). 아래 나머지 에이전트 세부 지표는 단계적으로 진행합니다.
 
 #### 재무제표 분석가 (financial_agent.py)
 담당 지표:
-- [ ] PER (주가수익비율) — 저평가 핵심
-- [ ] PBR (주가순자산비율) — 자산 대비 저평가
-- [ ] PEG Ratio — 성장 감안 밸류에이션
-- [ ] EV/EBITDA — 자본구조 제거한 순수 비교
-- [ ] ROE — 자기자본 수익성 (15% 이상 선호)
-- [ ] ROIC vs WACC — 가치 창출 여부
-- [ ] FCF Yield — 실질 현금창출력
-- [ ] 부채비율 — 재무 안전성
-- [ ] 이자보상배율 — 금리 상승기 생존력
-- [ ] 영업이익률 추세 — 본업 경쟁력
-- [ ] DCF 적정주가 산출
-- [ ] 그레이엄 수식 (Graham Number)
-- [ ] 배당수익률
+- [x] PER (주가수익비율) — 저평가 핵심 (`pykrx` 펀더멘털)
+- [x] PBR (주가순자산비율) — 자산 대비 저평가
+- [x] PEG Ratio — 성장 감안 밸류에이션 (DART 당기순이익 YoY + PER 근사)
+- [x] EV/EBITDA — 자본구조 제거한 순수 비교 (시총+순차입 근사, EBITDA=영업이익+감가상각비)
+- [x] ROE — 자기자본 수익성 (15% 이상 선호) (`EPS/BPS` 프록시)
+- [x] ROIC vs WACC — 가치 창출 여부 (`NOPAT/투하자본` 근사 vs WACC 휴리스틱 8.5%)
+- [x] FCF Yield — 실질 현금창출력 (FCF/시총, DART+`pykrx` 시총)
+- [x] 부채비율 — 재무 안전성 (DART)
+- [x] 이자보상배율 — 금리 상승기 생존력
+- [x] 영업이익률 추세 — 본업 경쟁력 (사업보고서 당·전기 매출·영업이익)
+- [x] DCF 적정주가 산출 (5년 명시 + 터미널 기업가치 근사, 시장 EV 대비 괴리율 시그널)
+- [x] 그레이엄 수식 (Graham Number)
+- [x] 배당수익률 (`pykrx` DIV%)
 
 #### 거시경제 분석가 (macro_agent.py)
 담당 지표:
