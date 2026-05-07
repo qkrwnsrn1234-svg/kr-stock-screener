@@ -35,6 +35,39 @@
 - [x] requirements.txt 작성 및 패키지 설치
 - [x] .env / .env.example 생성 (API 키 관리)
 
+### 1-1-B. 필수 API 키 발급 가이드 (앱 실제 사용 전 필수)
+
+> API 키가 없어도 앱은 실행되지만, 없으면 AI 분석·재무 지표가 크게 제한됩니다.
+
+#### ① Anthropic API 키 — **AI 분석의 핵심**
+- **없으면**: CEO 요약·거시 분석이 if-else 규칙 기반 텍스트로 대체됨 → 사실상 재무 계산기
+- **있으면**: Claude가 에이전트 결과를 종합해 자연어 투자 분석 생성 → 진짜 AI 스크리너
+- 발급: [console.anthropic.com](https://console.anthropic.com) → API Keys → Create Key
+- `.env` 설정: `ANTHROPIC_API_KEY=sk-ant-...`
+- 과금: 종목 1개 분석당 약 $0.01~0.03 (Claude Sonnet 기준)
+- [ ] `.env.example` 에 발급 URL 주석으로 추가
+
+#### ② DART API 키 — **재무·리스크 지표의 핵심**
+- **없으면**: 부채비율·FCF·Altman Z·영업이익률 추세 등 DART 기반 지표 → None 또는 근사값
+- **있으면**: 연결 재무제표 실데이터로 정밀 계산
+- 발급: [dart.fss.or.kr](https://dart.fss.or.kr) → 인증키 신청 → 이메일 즉시 발급 (무료)
+- `.env` 설정: `DART_API_KEY=...`
+- [ ] `.env.example` 에 발급 URL 주석으로 추가
+
+#### ③ 한국은행 ECOS API 키 — **거시경제 지표** (선택)
+- **없으면**: 환율 데이터만 제한적으로 조회, 금리·CPI·PMI 지표 누락
+- **있으면**: 기준금리·CPI·PMI 등 ECOS 지표 연동 가능
+- 발급: [ecos.bok.or.kr](https://ecos.bok.or.kr) → Open API → 인증키 신청 (무료)
+- `.env` 설정: `ECOS_API_KEY=...`
+- [ ] `.env.example` 에 발급 URL 주석으로 추가
+
+#### API 키 세팅 우선순위
+```
+필수 ★★★  ANTHROPIC_API_KEY   ← AI 분석 자체가 작동 안 함
+필수 ★★★  DART_API_KEY        ← 재무·리스크 지표 절반이 빠짐
+선택 ★☆☆  ECOS_API_KEY        ← 거시경제 지표 보강용
+```
+
 ### 1-2. 데이터 수집 모듈 (backend/data/)
 - [x] finance_data.py — FinanceDataReader 연동 (주가, ETF)
 - [x] krx_data.py — pykrx 연동 (거래량, 시총, 외국인/기관 매매)
