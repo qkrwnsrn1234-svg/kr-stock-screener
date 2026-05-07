@@ -187,6 +187,16 @@
 - [x] `fcf_s = 50.0` 상수 제거 → FCF 가중치 제외 후 PER·PBR·FSCORE 3가중치 합(0.90)으로 정규화
       — 파일: `backend/screener/screening.py`
 
+#### [BUG-5] pywebview 미설치로 데스크톱 앱 실행 불가 ← 앱이 켜지지 않는 직접 원인
+- [x] 원인 파악: `requirements.txt`에 `pywebview>=5.4.0` 선언되어 있으나 `.venv`에 미설치
+      — 증상: `ModuleNotFoundError: No module named 'webview'` → 앱 즉시 종료
+      — 해결: `.venv/bin/pip install pywebview` 로 수동 설치 완료 (6.2.1 설치됨)
+- [ ] 재발 방지: `scripts/build_desktop.sh` 또는 `Makefile`에 실행 전 의존성 검증 추가
+      ```bash
+      .venv/bin/pip install -r requirements.txt --quiet
+      ```
+      — 또는 `desktop/app.py` 실행 시 `pywebview` import 실패 → 안내 메시지 + 자동 설치 유도
+
 #### [BUG-4] pykrx 라이브러리 내부 `print()` 경고 출력
 - [ ] 앱/서버 시작 시 `"KRX 로그인 실패: KRX_ID 또는 KRX_PW 환경 변수가 설정되지 않았습니다."` 출력
       — 원인: pykrx 라이브러리 내부 코드(`pykrx/website/comm/auth.py:185`)의 `print()` 직접 호출
