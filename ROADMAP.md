@@ -11,7 +11,7 @@
 **현재 브랜치**: main
 **다음 할 일**: ECOS 코드 실데이터 검증, 퀀트 멀티팩터·섹터 어닝 리비전 등 — API 키는 완성 후 `.env` 일괄 등록하면 됨
 **최종 배포 목표**: Phase 5 — `make build-desktop && make install` 로 `/Applications` 설치·첫 실행 보안 안내까지 반영
-**마지막 커밋**: (이번 작업 커밋 후 해시로 갱신)
+**마지막 커밋**: 1df1533 — yfinance 미국 거시·섹터 동종 PER/PBR·어드바이저 업종 HHI·.env.example URL
 
 ---
 
