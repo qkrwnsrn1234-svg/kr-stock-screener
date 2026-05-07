@@ -10,13 +10,65 @@ import asyncio
 import logging
 from collections import defaultdict
 
+import pandas as pd
+
 from . import technical_indicators as ti
 from backend.agents.base_agent import BaseAgent
-from backend.agents.io_async import fetch_equity_ohlcv_async
+from backend.agents.io_async import fetch_equity_ohlcv_async, fetch_index_ohlcv_async
 from backend.agents.models import AgentResponse
 from backend.data import finance_data
 
 logger = logging.getLogger(__name__)
+
+
+def _build_action_priorities(
+    norm_weights: dict[str, float],
+    vol_map: dict[str, float | None],
+    equal_w: float,
+) -> list[dict[str, object]]:
+    """
+    매도(축소)·홀드·비중확대 후보를 우선순위로 정렬합니다.
+
+    Args:
+        norm_weights: 정규화된 보유 비중.
+        vol_map: 종목별 연율화 변동성(없으면 None).
+        equal_w: 동일가중 목표 비중.
+
+    Returns:
+        ``priority`` 오름차순(1이 가장 먼저 검토) 리스트.
+    """
+    rows: list[tuple[float, str, str, str]] = []
+    max_w_all = max(norm_weights.values()) if norm_weights else 0.0
+    for tic, w in norm_weights.items():
+        v = vol_map.get(tic)
+        vp = float(v) if isinstance(v, (int, float)) else 0.28
+        dev = w - equal_w
+        if w > equal_w + 0.035 and (w >= max_w_all * 0.92 or w > 0.22):
+            urgency = dev * (1.0 + vp * 2.2)
+            rows.append((urgency, tic, "trim", f"과대비중(목표 대비 +{dev*100:.1f}%p), 변동성 가중"))
+        elif w < equal_w - 0.025 and vp < 0.36:
+            urgency = (-dev) * (1.2 + (0.35 - vp))
+            rows.append((urgency, tic, "add", f"저비중·상대적 저변동 — 비중 확대 후보"))
+        else:
+            rows.append((0.0, tic, "hold", "동일가중 근처 — 유지·미세 조정"))
+
+    trim = [(u, t, a, n) for u, t, a, n in rows if a == "trim"]
+    add = [(u, t, a, n) for u, t, a, n in rows if a == "add"]
+    hold = [(u, t, a, n) for u, t, a, n in rows if a == "hold"]
+    trim.sort(key=lambda x: -x[0])
+    add.sort(key=lambda x: -x[0])
+    ordered = trim + hold + add
+    out: list[dict[str, object]] = []
+    for i, (_u, t, act, note) in enumerate(ordered, start=1):
+        out.append(
+            {
+                "priority": i,
+                "ticker": t,
+                "action": act,
+                "note": note,
+            }
+        )
+    return out
 
 
 class AdvisorAgent(BaseAgent):
@@ -96,6 +148,24 @@ class AdvisorAgent(BaseAgent):
         equal_w = 1.0 / n
         suggestion = {t: equal_w for t in norm_weights.keys()}
 
+        action_priorities = _build_action_priorities(norm_weights, vol_map, equal_w)
+
+        market_regime_hint = "neutral"
+        kospi_tr60: float | None = None
+        try:
+            df_idx = await fetch_index_ohlcv_async("KS11")
+            bench = df_idx["Close"] if "Close" in df_idx.columns else df_idx["close"]
+            bench = bench.copy()
+            bench.index = pd.to_datetime(bench.index).normalize()
+            kospi_tr60 = ti.total_return(bench, 60)
+            if kospi_tr60 is not None:
+                if kospi_tr60 < -0.08:
+                    market_regime_hint = "defensive"
+                elif kospi_tr60 > 0.08:
+                    market_regime_hint = "risk_on"
+        except Exception as exc:
+            logger.debug("코스피 국면 계산 생략: %s", exc)
+
         score = 0.0
         notes: list[str] = []
         if hhi > 0.34:
@@ -129,6 +199,12 @@ class AdvisorAgent(BaseAgent):
             notes.append("가중 변동성 부담 큼 — 리스크 예산 점검")
             score -= 12
 
+        if market_regime_hint == "defensive":
+            notes.append("시장 국면(코스피 60일) 약세 — 방어·현금·퀄리티 비중 휴리스틱")
+            score -= 6
+        elif market_regime_hint == "risk_on":
+            notes.append("시장 국면(코스피 60일) 강세 — 분산 유지하되 추세 리스크 관리")
+
         opinion = "중립"
         if score <= -16:
             opinion = "매도"
@@ -145,6 +221,9 @@ class AdvisorAgent(BaseAgent):
             "sector_herfindahl_index": round(sector_hhi, 4) if sector_hhi is not None else None,
             "max_sector_weight": round(max_sector_w, 4) if max_sector_w is not None else None,
             "sector_weights_by_listing_dept": sector_weights_norm or None,
+            "action_priorities": action_priorities,
+            "market_regime_hint": market_regime_hint,
+            "kospi_total_return_60d": kospi_tr60,
         }
 
         reasoning = "; ".join(notes)

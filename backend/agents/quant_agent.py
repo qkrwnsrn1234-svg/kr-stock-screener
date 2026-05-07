@@ -97,6 +97,61 @@ def _piotroski_f_score(d: dict[str, float | None]) -> tuple[int, dict[str, bool]
     return int(total), crit
 
 
+def _clamp01(x: float) -> float:
+    """0~1 구간으로 잘라냅니다."""
+    return max(0.0, min(1.0, x))
+
+
+def _multifactor_scores(
+    *,
+    pi_total: int,
+    mom120: float | None,
+    vol_ann: float | None,
+    per: float | None,
+    pbr: float | None,
+    ey: float | None,
+) -> dict[str, float]:
+    """
+    가치·모멘텀·퀄리티·저변동성 하위 점수(각 0~100)와 복합 점수를 계산합니다.
+
+    전 종목 유니버스 내 z-score·순위는 배치 스크리닝에서 다루고,
+    여기서는 **단일 종목** 관점의 해석 가능한 가중 평균만 제공합니다.
+
+    Returns:
+        quality, value, momentum, low_volatility 각 0~100 및 composite_0_100.
+    """
+    quality = (pi_total / 9.0) * 100.0
+
+    value_parts: list[float] = []
+    if per is not None and per > 0:
+        value_parts.append(100.0 * _clamp01((35.0 - min(per, 35.0)) / 35.0))
+    if pbr is not None and pbr > 0:
+        value_parts.append(100.0 * _clamp01((4.0 - min(pbr, 4.0)) / 4.0))
+    if ey is not None and ey > 0:
+        value_parts.append(100.0 * _clamp01(ey / 0.22))
+    value = sum(value_parts) / len(value_parts) if value_parts else 50.0
+
+    if mom120 is not None:
+        momentum = 100.0 * _clamp01((mom120 + 0.35) / 0.70)
+    else:
+        momentum = 50.0
+
+    if vol_ann is not None and vol_ann > 0:
+        low_vol = 100.0 * _clamp01((0.52 - min(vol_ann, 0.52)) / 0.40)
+    else:
+        low_vol = 50.0
+
+    w_val, w_mom, w_qual, w_lv = 0.26, 0.24, 0.30, 0.20
+    composite = w_val * value + w_mom * momentum + w_qual * quality + w_lv * low_vol
+    return {
+        "value_0_100": round(value, 2),
+        "momentum_0_100": round(momentum, 2),
+        "quality_0_100": round(quality, 2),
+        "low_volatility_0_100": round(low_vol, 2),
+        "composite_0_100": round(composite, 2),
+    }
+
+
 def _magic_formula_metrics(
     d: dict[str, float | None],
     mcap: float | None,
@@ -206,6 +261,21 @@ class QuantAgent(BaseAgent):
         if vol_ann is not None and vol_ann > 0.33:
             score -= 10
 
+        per_raw = fundamentals.get("per") if fundamentals else None
+        pbr_raw = fundamentals.get("pbr") if fundamentals else None
+        per_f: float | None = float(per_raw) if isinstance(per_raw, (int, float)) else None
+        pbr_f: float | None = float(pbr_raw) if isinstance(pbr_raw, (int, float)) else None
+        multifactor = _multifactor_scores(
+            pi_total=pi_total,
+            mom120=mom120,
+            vol_ann=vol_ann,
+            per=per_f,
+            pbr=pbr_f,
+            ey=ey,
+        )
+        mf_composite = multifactor["composite_0_100"]
+        score += (mf_composite - 50.0) * 0.12
+
         pq_notes: list[str] = []
         if dart_ok:
             pq_notes.append(f"Piotroski F-Score={pi_total}/9")
@@ -215,6 +285,10 @@ class QuantAgent(BaseAgent):
                 pq_notes.append(f"EBIT/(NWC+PPE)(근사)={roc:.3f}")
         else:
             pq_notes.append("DART 재무 없음 — F-Score·매직포뮬러 제한")
+
+        pq_notes.append(
+            f"멀티팩터(가치·모멘텀·퀄·저변동) 복합≈{multifactor['composite_0_100']:.0f}/100"
+        )
 
         if fundamentals:
             rpp = fundamentals.get("roe_proxy_pct")
@@ -226,6 +300,8 @@ class QuantAgent(BaseAgent):
             "piotroski_criteria": pi_crit,
             "magic_formula": mf,
             "magic_formula_note": "전 종목 순위·복합점수는 배치 유니버스가 필요합니다.",
+            "multifactor": multifactor,
+            "multifactor_note": "단일 종목 가중 복합(0~100). 전종목 통합 순위는 유니버스 배치 시 산출.",
             "momentum_120d": mom120,
             "volatility_ann_60d": vol_ann,
             "fundamentals_available": bool(fundamentals),
