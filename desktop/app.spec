@@ -42,6 +42,25 @@ for _pkg in (
     except Exception:
         pass
 
+# pywebview macOS(Cocoa/WKWebView) 런타임 — PyObjC 프레임워크가 빠지면 창이 뜨지 않거나 즉시 종료됨
+if sys.platform == "darwin":
+    for _pkg in (
+        "objc",
+        "Foundation",
+        "AppKit",
+        "Cocoa",
+        "WebKit",
+        "PyObjCTools",
+        "Quartz",
+    ):
+        try:
+            d, b, h = collect_all(_pkg)
+            _datas_acc += d
+            _binaries_acc += b
+            _hidden_acc += h
+        except Exception:
+            pass
+
 _datas_extra: list = []
 _frontend_dist = _APP_ROOT / "frontend" / "dist"
 if _frontend_dist.is_dir():
@@ -62,6 +81,7 @@ a = Analysis(
     datas=_datas_acc + _datas_extra,
     hiddenimports=_hidden_acc
     + collect_submodules("backend")
+    + (["webview.platforms.cocoa"] if sys.platform == "darwin" else [])
     + [
         "uvicorn.loops.auto",
         "uvicorn.loops.asyncio",

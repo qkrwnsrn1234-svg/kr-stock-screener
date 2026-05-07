@@ -50,6 +50,17 @@ PyInstaller 공식 지원은 **Python 3.12 이하** 권장([ROADMAP](./ROADMAP.m
 - 번들된 앱은 첫 실행 시 사용자 데이터 디렉터리에 SQLite·캐시·`.env` 를 둡니다(`desktop/frozen_env.py`).
 - `requirements-build.txt` 에 `pyinstaller` 가 있습니다.
 
+### macOS 첫 실행 시 보안 승인 (한 번만)
+
+PyInstaller로 만든 앱은 Apple 개발자 서명이 없으면 **처음 실행할 때** macOS가 “신뢰할 수 없는 개발자” 경고를 띄울 수 있습니다. 카카오톡 등 상용 앱과 달리 로컬에서 빌드한 `.app` 이라 흔한 현상입니다.
+
+1. **Finder**에서 `응용 프로그램`(또는 `/Applications`)을 엽니다.
+2. **KRStockScreener.app** 을 **우클릭**(또는 Control+클릭)합니다.
+3. 상단 메뉴가 아니라 **바로 뜨는 메뉴**에서 **열기**를 선택합니다.
+4. 확인 창에서 다시 **열기**를 누릅니다.
+
+이후에는 Dock·Spotlight·더블클릭으로 평소 앱처럼 실행됩니다. 터미널에서 한 번 열어 승인하고 싶다면 `open /Applications/KRStockScreener.app` 도 같은 효과가 날 수 있으나, 우클릭 → 열기가 가장 확실합니다.
+
 ## Docker
 
 ```bash

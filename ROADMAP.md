@@ -10,7 +10,7 @@
 **현재 Phase**: Phase 1-4 에이전트 세부 지표 보강 (재무 완료 → 리스크/퀀트 다음)
 **현재 브랜치**: feature/phase4-scheduler-docker
 **다음 할 일**: 리스크(Altman Z-Score·공매도 정교화) 또는 퀀트(Magic Formula 랭킹) 중 선택
-**최종 배포 목표**: Phase 5 ✅ 구조 완성 — macOS `.app` 더블클릭으로 실행 가능한 상태
+**최종 배포 목표**: Phase 5 — `make build-desktop && make install` 로 `/Applications` 설치·첫 실행 보안 안내까지 반영
 **마지막 커밋**: feat(agents): 재무 에이전트 PEG·EV/EBITDA·ROIC·FCF Yield·DCF 등 지표 보강
 
 ---
@@ -339,14 +339,14 @@
 
 ### 5-4. 빌드 자동화
 - [x] `scripts/build_desktop.sh` + `Makefile` (`build-desktop`, `build-mac` / `build-win` → 동일 스크립트)
-- [ ] `make install` — 빌드 후 `/Applications/KRStockScreener.app` 자동 복사
+- [x] `make install` — 빌드 후 `/Applications/KRStockScreener.app` 자동 복사
       ```makefile
       install: build-desktop
           cp -r dist/KRStockScreener.app /Applications/
           @echo "✅ 설치 완료: /Applications/KRStockScreener.app"
       ```
       — 설치 후 Launchpad · Spotlight · Dock 어디서나 실행 가능
-- [ ] macOS 첫 실행 보안 경고 우회 문서화 (`README.md` 또는 `docs/` 추가)
+- [x] macOS 첫 실행 보안 경고 우회 문서화 (`README.md` — “macOS 첫 실행 시 보안 승인” 섹션)
       — 서명되지 않은 앱은 최초 1회만: Finder에서 우클릭 → "열기" → "열기" 확인
       — 이후부터는 더블클릭만으로 실행
 - [ ] GitHub Actions CI: 태그 푸시 시 자동 빌드 + Releases 업로드 (선택)
