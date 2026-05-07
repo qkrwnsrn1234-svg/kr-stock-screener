@@ -108,12 +108,25 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: GitHub Release 생성·업로드 (태그 푸시 한정)
+      # 태그 푸시(ref=refs/tags/v…)면 자동으로 Release 페이지에 .exe 첨부
+      - name: GitHub Release 생성·업로드 (태그 푸시)
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           name: KR Stock Screener ${{ steps.ver.outputs.version }}
           tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            dist/KRStockScreener-Setup-*.exe
+
+      # Actions에서 "Run workflow" 로 돌릴 때도 Releases 비우기 방지:
+      # 버전 입력 시 원격에 동일 태그(예: v0.1.0)가 이미 있어야 함 → 해당 태그용 Release 생성·첨부
+      - name: GitHub Release 생성·업로드 (수동 실행 + 버전 입력)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.version != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          name: KR Stock Screener ${{ github.event.inputs.version }}
           generate_release_notes: true
           files: |
             dist/KRStockScreener-Setup-*.exe
