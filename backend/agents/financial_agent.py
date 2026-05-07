@@ -91,6 +91,10 @@ async def _lookup_fundamentals(ticker: str) -> tuple[dict[str, Any], str | None]
 
 # DART 재무제표 계정과목명 키워드 (연결·별도 모두 포함, 첫 매칭 행의 당기·전기)
 _DART_ACCT_MAP = {
+    # Altman Z(상장사 근사) — WC·RE 등
+    "current_assets": ["유동자산"],
+    "current_liabilities": ["유동부채"],
+    "retained_earnings": ["미처분이익잉여금", "이익잉여금"],
     "operating_profit": ["영업이익"],
     "revenue": ["매출액", "수익(매출액)"],
     "operating_cf": ["영업활동으로인한현금흐름", "영업활동 현금흐름"],

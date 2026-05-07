@@ -9,9 +9,9 @@
 
 **현재 Phase**: Phase 1-4 에이전트 세부 지표 보강 (재무 완료 → 리스크/퀀트 다음)
 **현재 브랜치**: feature/phase4-scheduler-docker
-**다음 할 일**: 리스크(Altman Z-Score·공매도 정교화) 또는 퀀트(Magic Formula 랭킹) 중 선택
+**다음 할 일**: 퀀트(Magic Formula·F-Score 정식화) 또는 거시(금리·CPI·환율 연동) 중 선택 — 리스크 에이전트(Altman Z·공매도 비율·시나리오·포지션 힌트) 보강 반영됨
 **최종 배포 목표**: Phase 5 — `make build-desktop && make install` 로 `/Applications` 설치·첫 실행 보안 안내까지 반영
-**마지막 커밋**: fix(desktop): pykrx용 matplotlib 번들 포함, 시작 실패 시 로그·알림
+**마지막 커밋**: feat(agents): 리스크 에이전트 Altman Z·공매도 비율·하방 시나리오·포지션 힌트
 
 ---
 
@@ -93,12 +93,12 @@
 
 #### 리스크 매니저 (risk_agent.py)
 담당 지표:
-- [ ] Altman Z-Score — 파산 위험도
-- [ ] 공매도 비율 / 쇼트 스퀴즈 가능성
-- [ ] 변동성 (베타, 52주 고저 범위)
-- [ ] 하락 시나리오 3단계 (약세/중립/강세)
-- [ ] 최대낙폭 (MDD)
-- [ ] 포지션 사이징 조언
+- [x] Altman Z-Score — 파산 위험도 (DART WC·RE·EBIT·부채·매출 + 시총 MVE/TL 근사)
+- [x] 공매도 비율 / 쇼트 스퀴즈 가능성 (잔고수량·상장주식수 비율·차트 위치 힌트)
+- [x] 변동성 (베타, 52주 고저 범위)
+- [x] 하락 시나리오 3단계 (약세·중간·중증 하방 비율 힌트)
+- [x] 최대낙폭 (MDD)
+- [x] 포지션 사이징 조언 (변동성·Z-점수 기반 휴리스틱 문장)
 
 #### 섹터 전문가 (sector_agent.py)
 담당 지표:
