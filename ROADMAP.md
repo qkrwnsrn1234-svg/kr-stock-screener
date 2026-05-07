@@ -334,7 +334,7 @@
 - [x] `desktop/app.spec` 작성 (`desktop/pyinstaller_entry.py`, `collect_all`·`collect_submodules(backend)`·`frontend/dist`·`.env.example` 동봉)
 - [x] macOS **onedir** + `BUNDLE` → `dist/KRStockScreener.app` (Windows/Linux 는 `dist/KRStockScreener/` 폴더)
 - [ ] Windows: `.exe` NSIS 인스톨러 생성 (선택)
-- [x] 번들 크기 일부 절감: `excludes`(matplotlib·tkinter·PyQt5 등), `upx=False`
+- [x] 번들 크기 일부 절감: `excludes`(tkinter·PyQt5 등). `matplotlib` 는 `pykrx` import 에 필요해 제외 목록에 넣지 않음. `upx=False`
 - [x] 런타임: ``desktop/frozen_env.py`` 로 사용자 영역 DB·캐시·`.env` 복사, ``KR_STOCK_CACHE_DIR`` (`backend/data/cache.py`)
 
 ### 5-4. 빌드 자동화

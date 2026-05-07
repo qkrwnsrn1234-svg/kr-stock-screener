@@ -62,6 +62,21 @@ PyInstaller로 만든 앱은 Apple 개발자 서명이 없으면 **처음 실행
 
 이후에는 Dock·Spotlight·더블클릭으로 평소 앱처럼 실행됩니다. 터미널에서 한 번 열어 승인하고 싶다면 `open /Applications/KRStockScreener.app` 도 같은 효과가 날 수 있으나, 우클릭 → 열기가 가장 확실합니다.
 
+### 아이콘만 깜빡이고 창이 안 뜰 때
+
+1. **최신 `.app`으로 다시 설치**  
+   이전 빌드는 `pykrx` 가 `matplotlib` 을 필요로 하는데, 번들에서 `matplotlib` 를 빼면 백엔드가 뜨지 않고(헬스체크 실패) 조용히 실패할 수 있습니다. 저장소를 당겨 온 뒤 `make build-desktop && make install` 로 덮어쓰세요.
+
+2. **터미널에서 직접 실행** — 표준 오류에 원인이 그대로 찍힙니다.  
+   `"/Applications/KRStockScreener.app/Contents/MacOS/KRStockScreener"`  
+   (경로에 오타가 없는지 확인하세요. 올바른 이름은 `KRStockScreener`.)
+
+3. **시작 실패 로그**  
+   예외가 나면 `~/Library/Application Support/KRStockScreener/desktop_startup_error.log` 에 남고, macOS 에서는 TextEdit 으로 열리며 알림이 뜰 수 있습니다.
+
+4. **검역 속성 제거**(다운로드 복사본만 해당되는 경우가 많음)  
+   `xattr -cr /Applications/KRStockScreener.app`
+
 ## Docker
 
 ```bash

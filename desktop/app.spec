@@ -95,8 +95,8 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
+    # matplotlib: pykrx 가 import 시 matplotlib.font_manager 를 요구하므로 제외 불가
     excludes=[
-        "matplotlib",
         "tkinter",
         "PyQt5",
         "PySide2",
