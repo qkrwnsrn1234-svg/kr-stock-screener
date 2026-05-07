@@ -27,14 +27,15 @@ ECOS_API_BASE = "https://ecos.bok.or.kr/api"
 # 원/달러 매매기준율 일련 — 통계표·항목 코드는 환경에 따라 다를 수 있습니다.
 DEFAULT_STAT_USD_KRW = ("731Y001", "D", "0000001")
 
-# 정책금리(기준금리) 일간 — ECOS 메타 변경 시 포털에서 코드를 재확인하세요.
-DEFAULT_STAT_BASE_RATE = ("722B001", "D", "0101000")
+# 정책금리(기준금리) 일간 — ``722B001`` 는 API에서 데이터 미제공(INFO-200)이며 ``722Y001`` 이 실데이터로 검증됨.
+DEFAULT_STAT_BASE_RATE = ("722Y001", "D", "0101000")
 
 # 소비자물가 전년동월비 등 월간 지표 — 항목 코드가 필요한 통계표는 ECOS 항목 목록으로 확인합니다.
 DEFAULT_STAT_CPI_YOY = ("901Y010", "M", "")
 
-# 제조업 구매관리자지수(PMI) 월간 — 제공 통계가 바뀌면 통계표 코드를 교체할 수 있습니다.
-DEFAULT_STAT_PMI_MFG = ("812Y001", "M", "")
+# 제조업 PMI 대체: ECOS ``812Y001`` 는 실조회 시 데이터 없음(INFO-200).
+# 한국은행 「업종별 기업경기실사지수」 전산업·업황실적 BSI(항목 AA·99988)를 거시 선행 분위기 지표로 사용합니다.
+DEFAULT_STAT_INDUSTRY_BSI = ("512Y007", "M", "AA", "99988")
 
 
 def _api_key_fingerprint(api_key: str) -> str:
@@ -58,6 +59,9 @@ def statistic_search(
     end_date: str,
     item_code: str = "",
     *,
+    item_code2: str = "",
+    item_code3: str = "",
+    item_code4: str = "",
     api_key: str | None = None,
     start_index: int = 1,
     end_index: int = 10000,
@@ -73,7 +77,10 @@ def statistic_search(
         cycle: 주기 코드 (``D`` 일, ``M`` 월 등 ECOS 규약).
         start_date: 조회 시작 일자 (통계표 주기에 맞는 문자열).
         end_date: 조회 종료 일자.
-        item_code: 통계항목 코드 (불필요 시 빈 문자열).
+        item_code: 통계항목 코드 1(불필요 시 빈 문자열).
+        item_code2: 통계항목 코드 2(다단 항목 통계표용).
+        item_code3: 통계항목 코드 3.
+        item_code4: 통계항목 코드 4.
         api_key: ECOS 인증키.
         start_index: 시작 건수(페이지 시작).
         end_index: 종료 건수(페이지 끝).
@@ -103,9 +110,10 @@ def statistic_search(
             quote(start_date, safe=""),
             quote(end_date, safe=""),
         ]
-        item = item_code.strip()
-        if item:
-            segments.append(quote(item, safe=""))
+        for raw_item in (item_code, item_code2, item_code3, item_code4):
+            part = raw_item.strip()
+            if part:
+                segments.append(quote(part, safe=""))
         url = f"{ECOS_API_BASE}/{'/'.join(segments)}"
         try:
             resp = requests.get(url, timeout=60)
@@ -135,6 +143,9 @@ def statistic_search(
         start_date,
         end_date,
         item_code,
+        item_code2,
+        item_code3,
+        item_code4,
         str(start_index),
         str(end_index),
     )
@@ -211,7 +222,11 @@ def fetch_manufacturing_pmi_monthly(
     ttl_seconds: int = DEFAULT_TTL_SECONDS,
 ) -> dict[str, Any]:
     """
-    제조업 구매관리자지수(PMI) 등 월간 시계열을 조회합니다.
+    제조업 PMI 대신 전산업 「업황실적BSI」 월간 시계열을 조회합니다.
+
+    과거 PMI 전용 통계표(예: ``812Y001``)가 ECOS에서 비어 있는 경우가 있어,
+    기업경기실사지수(512Y007, 항목 AA·전산업 99988)로 거시 분위기를 봅니다.
+    민감도 해석은 기준치 **100**(초과·호전, 미만·위축)입니다.
 
     Args:
         start_month: 시작 월 ``YYYYMM``.
@@ -222,13 +237,14 @@ def fetch_manufacturing_pmi_monthly(
     Returns:
         ECOS JSON 응답.
     """
-    stat_code, cycle, item_code = DEFAULT_STAT_PMI_MFG
+    stat_code, cycle, it1, it2 = DEFAULT_STAT_INDUSTRY_BSI
     return statistic_search(
         stat_code,
         cycle,
         start_month,
         end_month,
-        item_code=item_code,
+        item_code=it1,
+        item_code2=it2,
         api_key=api_key,
         ttl_seconds=ttl_seconds,
     )

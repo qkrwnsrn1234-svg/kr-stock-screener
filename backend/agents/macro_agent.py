@@ -97,7 +97,7 @@ class MacroAgent(BaseAgent):
 
     async def analyze(self, ticker: str) -> AgentResponse:
         """
-        ECOS 기준 원/달러·기준금리·CPI·PMI를 요약하고 Claude 코멘터리를 붙입니다.
+        ECOS 기준 원/달러·기준금리·CPI·전산업 업황 BSI(PMI 대리)를 요약하고 Claude 코멘터리를 붙입니다.
 
         개별 통계 호출이 실패해도 나머지 지표는 가능한 채웁니다.
         """
@@ -118,6 +118,7 @@ class MacroAgent(BaseAgent):
         end_m = today.strftime("%Y%m")
 
         async def _safe_ecos(label: str, fn: Callable[..., Any]) -> Any:
+            # ECOS 호출은 네트워크·통계표 코드 이슈로 자주 단건 실패 → 나머지 지표는 유지
             try:
                 raw = await asyncio.to_thread(fn)
                 logger.debug("ECOS %s 수신", label)
@@ -155,7 +156,7 @@ class MacroAgent(BaseAgent):
                 ),
             ),
             _safe_ecos(
-                "pmi",
+                "industry_bsi",
                 partial(
                     bok_data.fetch_manufacturing_pmi_monthly,
                     start_m,
@@ -219,17 +220,19 @@ class MacroAgent(BaseAgent):
 
         if raw_pmi:
             obs_p = _extract_recent_observations(raw_pmi, limit=6)
+            signals["industry_bsi_recent"] = obs_p
             signals["pmi_manufacturing_recent"] = obs_p
             vals_p = _observations_to_floats(obs_p)
             if vals_p:
                 last_p = vals_p[-1]
+                signals["industry_bsi_last"] = last_p
                 signals["pmi_manufacturing_last"] = last_p
-                if last_p < 50.0:
+                if last_p < 100.0:
                     score -= 4
-                    trend_notes.append("제조업 PMI 50 미만(수축 우려)")
-                elif last_p >= 51.0:
+                    trend_notes.append("전산업 업황 BSI 100 미만(기준치 대비 위축)")
+                elif last_p >= 101.0:
                     score += 4
-                    trend_notes.append("제조업 PMI 양호(확장 국면)")
+                    trend_notes.append("전산업 업황 BSI 호조(기준치 100 상회)")
             series_ok += 1
 
         us_data_ok = False
