@@ -1,8 +1,8 @@
 """
-거시경제(ECOS 등) 관점 에이전트입니다.
+거시경제(ECOS·미국 시장 프록시) 관점 에이전트입니다.
 
-환경 변수 ``ECOS_API_KEY`` 가 없거나 호출이 실패하면 신뢰도를 낮춘 중립 의견을 반환합니다.
-``ANTHROPIC_API_KEY`` 가 있으면 Claude를 통해 지정학·금리·환율 영향을 자연어로 보강합니다.
+``ECOS_API_KEY`` 가 없어도 ``yfinance`` 기반 DXY·^IRX(미국 3개월 국채) 스냅샷으로 보조합니다.
+``ANTHROPIC_API_KEY`` 가 있으면 Claude 코멘터리를 붙입니다.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from typing import Any, Callable
 
 from backend.agents.base_agent import BaseAgent
 from backend.agents.models import AgentResponse
-from backend.data import bok_data
+from backend.data import bok_data, finance_data, us_macro_data
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +57,38 @@ def _month_add(d: date, delta_months: int) -> str:
     return f"{ny:04d}{nm:02d}"
 
 
+def _dept_for_ticker_sync(code: str) -> str:
+    """상장 목록에서 종목의 ``Dept`` 문자열을 가져옵니다."""
+    try:
+        df = finance_data.list_krx_symbols(None)
+        if df is None or df.empty or "Code" not in df.columns:
+            return ""
+        codes = df["Code"].astype(str).str.zfill(6)
+        rows = df[codes == code.strip().zfill(6)]
+        if rows.empty:
+            return ""
+        dept = str(rows.iloc[0].get("Dept", "") or "").strip()
+        return dept if dept.lower() != "nan" else ""
+    except Exception as exc:
+        logger.debug("거시용 업종 조회 생략: %s", exc)
+        return ""
+
+
+def _sector_rate_pressure(dept: str, bok_rate_rising: bool | None) -> tuple[float, str]:
+    """
+    한국 기준금리 상승 구간에서 업종별 차입·이자 민감도 휴리스틱(점수 보정).
+    """
+    if not dept or bok_rate_rising is not True:
+        return 0.0, ""
+    sens_hi = ("건설", "부동산", "금융", "은행", "보험", "증권", "캐피탈")
+    sens_mid = ("유통", "운수", "운송", "화학", "철강", "에너지", "가전")
+    if any(k in dept for k in sens_hi):
+        return -3.0, f"기준금리 상승 구간 — 업종({dept}) 금리 민감도 높음(휴리스틱)"
+    if any(k in dept for k in sens_mid):
+        return -1.5, f"기준금리 상승 구간 — 업종({dept}) 다소 민감(휴리스틱)"
+    return 0.0, ""
+
+
 class MacroAgent(BaseAgent):
     """금리·환율·물가 등 거시 변수 에이전트."""
 
@@ -70,11 +102,13 @@ class MacroAgent(BaseAgent):
         개별 통계 호출이 실패해도 나머지 지표는 가능한 채웁니다.
         """
         self.validate_ticker(ticker)
+        code = ticker.strip()
 
         signals: dict[str, Any] = {}
         score = 0.0
         trend_notes: list[str] = []
         series_ok = 0
+        bok_rate_rising: bool | None = None
 
         today = date.today()
         start_d = (today - timedelta(days=420)).strftime("%Y%m%d")
@@ -83,10 +117,7 @@ class MacroAgent(BaseAgent):
         start_m = _month_add(today, -48)
         end_m = today.strftime("%Y%m")
 
-        async def _safe_thread(
-            label: str,
-            fn: Callable[..., dict[str, Any]],
-        ) -> dict[str, Any] | None:
+        async def _safe_ecos(label: str, fn: Callable[..., Any]) -> Any:
             try:
                 raw = await asyncio.to_thread(fn)
                 logger.debug("ECOS %s 수신", label)
@@ -95,8 +126,8 @@ class MacroAgent(BaseAgent):
                 logger.info("ECOS %s 실패 — %s", label, exc)
                 return None
 
-        raw_usd, raw_rate, raw_cpi, raw_pmi = await asyncio.gather(
-            _safe_thread(
+        raw_usd, raw_rate, raw_cpi, raw_pmi, us_snap, dept_str = await asyncio.gather(
+            _safe_ecos(
                 "usd_krw",
                 partial(
                     bok_data.fetch_usd_krw_daily,
@@ -105,7 +136,7 @@ class MacroAgent(BaseAgent):
                     ttl_seconds=3600,
                 ),
             ),
-            _safe_thread(
+            _safe_ecos(
                 "base_rate",
                 partial(
                     bok_data.fetch_base_rate_daily,
@@ -114,7 +145,7 @@ class MacroAgent(BaseAgent):
                     ttl_seconds=7200,
                 ),
             ),
-            _safe_thread(
+            _safe_ecos(
                 "cpi_yoy",
                 partial(
                     bok_data.fetch_cpi_yoy_monthly,
@@ -123,7 +154,7 @@ class MacroAgent(BaseAgent):
                     ttl_seconds=7200,
                 ),
             ),
-            _safe_thread(
+            _safe_ecos(
                 "pmi",
                 partial(
                     bok_data.fetch_manufacturing_pmi_monthly,
@@ -132,6 +163,10 @@ class MacroAgent(BaseAgent):
                     ttl_seconds=7200,
                 ),
             ),
+            asyncio.to_thread(
+                partial(us_macro_data.fetch_us_dollar_rate_snapshot, ttl_seconds=7200),
+            ),
+            asyncio.to_thread(_dept_for_ticker_sync, code),
         )
 
         usd_krw_change: float | None = None
@@ -159,7 +194,8 @@ class MacroAgent(BaseAgent):
             vals_r = _observations_to_floats(obs_r)
             if len(vals_r) >= 2:
                 signals["bok_base_rate_last_pct"] = vals_r[-1]
-                if vals_r[-1] > vals_r[0]:
+                bok_rate_rising = vals_r[-1] > vals_r[0]
+                if bok_rate_rising:
                     score -= 4
                     trend_notes.append("기준금리 최근 구간 상승 추세")
                 elif vals_r[-1] < vals_r[0]:
@@ -196,6 +232,30 @@ class MacroAgent(BaseAgent):
                     trend_notes.append("제조업 PMI 양호(확장 국면)")
             series_ok += 1
 
+        us_data_ok = False
+        if isinstance(us_snap, dict) and us_snap.get("ok"):
+            signals["us_macro_yfinance"] = dict(us_snap)
+            us_data_ok = True
+            irx_pp = us_snap.get("us_tbill_3mo_yield_change_approx_1m_pp")
+            if isinstance(irx_pp, (int, float)) and irx_pp > 0.12:
+                score -= 3
+                trend_notes.append("미국 3개월 국채 수익률 단기 상승(^IRX proxy)")
+            dxy_ch = us_snap.get("dxy_change_approx_1m_ratio")
+            if isinstance(dxy_ch, (int, float)):
+                if dxy_ch > 0.015:
+                    score -= 2
+                    trend_notes.append("달러 인덱스(DXY) 상승 — 강달러 분위기")
+                elif dxy_ch < -0.015:
+                    score += 1
+                    trend_notes.append("DXY 약세 — 달러 분위기 완화")
+
+        if dept_str:
+            signals["listing_dept_proxy"] = dept_str
+            sec_adj, sec_note = _sector_rate_pressure(dept_str, bok_rate_rising)
+            if sec_note:
+                trend_notes.append(sec_note)
+                score += sec_adj
+
         ecos_partial_or_full = series_ok > 0
         claude_commentary: str | None = None
         try:
@@ -204,7 +264,7 @@ class MacroAgent(BaseAgent):
             claude_commentary = await generate_macro_commentary(
                 ticker=ticker,
                 usd_krw_change_pct=usd_krw_change,
-                ecos_available=ecos_partial_or_full,
+                ecos_available=ecos_partial_or_full or us_data_ok,
                 signals=signals,
             )
         except Exception as exc:
@@ -220,29 +280,52 @@ class MacroAgent(BaseAgent):
             opinion = "매도"
 
         if not trend_notes:
-            trend_notes.append("거시 시계열 파싱 결과가 비었거나 ECOS 키/코드 이슈일 수 있습니다.")
+            trend_notes.append(
+                "ECOS·미국 yfinance 데이터가 비었거나 키·네트워크 이슈일 수 있습니다."
+            )
 
+        data_any = ecos_partial_or_full or us_data_ok or bool(claude_commentary)
         reasoning_core = (
-            f"ECOS 연계 지표 {series_ok}개 수신. "
+            f"ECOS 시계열 {series_ok}건"
+            + ("; yfinance DXY·^IRX 수신" if us_data_ok else "")
+            + ". "
             + "; ".join(trend_notes)
         )
         reasoning_parts = [reasoning_core]
-        if not ecos_partial_or_full and not claude_commentary:
+        if not data_any:
             reasoning_parts = [
-                "ECOS 통계를 불러오지 못했습니다. `.env` 의 ECOS_API_KEY·통계표 코드를 확인하세요."
+                "거시 데이터를 가져오지 못했습니다. ECOS_API_KEY·네트워크·yfinance 설치를 확인하세요."
             ]
             return self.build_response(
                 opinion="중립",
-                confidence=0.30,
+                confidence=0.28,
                 score=0.0,
                 reasoning=reasoning_parts[0],
-                signals={"ecos_available": False},
+                signals={
+                    "ecos_available": False,
+                    "us_yfinance_ok": False,
+                },
             )
 
         if claude_commentary:
             reasoning_parts.append(f"[Claude 거시 분석] {claude_commentary}")
 
-        confidence = 0.68 if (ecos_partial_or_full and claude_commentary) else (0.58 if ecos_partial_or_full else 0.42)
+        signals["ecos_series_count"] = series_ok
+        signals["us_yfinance_ok"] = us_data_ok
+        signals["ecos_available"] = ecos_partial_or_full
+
+        if ecos_partial_or_full and claude_commentary:
+            confidence = 0.68
+        elif ecos_partial_or_full:
+            confidence = 0.58
+        elif us_data_ok and claude_commentary:
+            confidence = 0.55
+        elif us_data_ok:
+            confidence = 0.50
+        elif claude_commentary:
+            confidence = 0.48
+        else:
+            confidence = 0.42
         return self.build_response(
             opinion=opinion,
             confidence=confidence,

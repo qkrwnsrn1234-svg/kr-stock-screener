@@ -6,12 +6,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from collections import defaultdict
 
 from . import technical_indicators as ti
 from backend.agents.base_agent import BaseAgent
 from backend.agents.io_async import fetch_equity_ohlcv_async
 from backend.agents.models import AgentResponse
+from backend.data import finance_data
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +51,29 @@ class AdvisorAgent(BaseAgent):
         hhi = sum(w * w for w in norm_weights.values())
         max_w = max(norm_weights.values()) if norm_weights else 0.0
         eff_n = (1.0 / hhi) if hhi > 0 else 1.0
+
+        sector_hhi: float | None = None
+        max_sector_w: float | None = None
+        sector_weights_norm: dict[str, float] = {}
+        try:
+            lst = await asyncio.to_thread(finance_data.list_krx_symbols, None)
+            if lst is not None and not lst.empty and "Code" in lst.columns and "Dept" in lst.columns:
+                code_to_dept: dict[str, str] = {}
+                for _, row in lst.iterrows():
+                    c = str(row.get("Code", "")).strip().zfill(6)
+                    d = str(row.get("Dept", "") or "").strip() or "미분류"
+                    if len(c) == 6:
+                        code_to_dept[c] = d
+                agg: defaultdict[str, float] = defaultdict(float)
+                for c, w in norm_weights.items():
+                    ck = c.strip().zfill(6)
+                    agg[code_to_dept.get(ck, "미분류")] += w
+                sector_weights_norm = dict(agg)
+                if sector_weights_norm:
+                    sector_hhi = sum(s * s for s in agg.values())
+                    max_sector_w = max(agg.values())
+        except Exception as exc:
+            logger.debug("포트폴리오 업종 쏠림 계산 생략: %s", exc)
 
         vol_map: dict[str, float | None] = {}
         for t in list(norm_weights.keys())[:12]:
@@ -89,6 +115,16 @@ class AdvisorAgent(BaseAgent):
             notes.append("단일 종목 비중이 큼 — 비중 조절 검토")
             score -= 4
 
+        if max_sector_w is not None and max_sector_w > 0.55:
+            notes.append(f"업종 쏠림: 최대 업종 비중≈{max_sector_w*100:.0f}% (상장 Dept 기준)")
+            score -= 10
+        elif max_sector_w is not None and max_sector_w > 0.42:
+            notes.append(f"업종 비중이 한쪽으로 치우침(최대≈{max_sector_w*100:.0f}%)")
+            score -= 5
+        if sector_hhi is not None and sector_hhi > 0.38:
+            notes.append(f"업종 분산 HHI={sector_hhi:.2f} — 섹터 집중")
+            score -= 6
+
         if risk_penalty > 0.28:
             notes.append("가중 변동성 부담 큼 — 리스크 예산 점검")
             score -= 12
@@ -106,6 +142,9 @@ class AdvisorAgent(BaseAgent):
             "weighted_vol_proxy": risk_penalty,
             "effective_num_holdings_approx": round(eff_n, 2),
             "max_single_weight": round(max_w, 4),
+            "sector_herfindahl_index": round(sector_hhi, 4) if sector_hhi is not None else None,
+            "max_sector_weight": round(max_sector_w, 4) if max_sector_w is not None else None,
+            "sector_weights_by_listing_dept": sector_weights_norm or None,
         }
 
         reasoning = "; ".join(notes)

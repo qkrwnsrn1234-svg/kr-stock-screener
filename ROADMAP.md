@@ -9,9 +9,9 @@
 
 **현재 Phase**: Phase 1-4 에이전트 세부 지표 보강 (퀀트·거시·섹터·포트폴리오 일부 반영)
 **현재 브랜치**: main
-**다음 할 일**: ECOS 통계표 코드 현장 검증(API 키로 스모크), Fed/DXY·섹터 집중도 심화, 스크리닝-퀀트 시그널 추가 정합
+**다음 할 일**: ECOS 코드 실데이터 검증, 퀀트 멀티팩터·섹터 어닝 리비전 등 — API 키는 완성 후 `.env` 일괄 등록하면 됨
 **최종 배포 목표**: Phase 5 — `make build-desktop && make install` 로 `/Applications` 설치·첫 실행 보안 안내까지 반영
-**마지막 커밋**: 3f9113f (기능 f625102 — pykrx 억제·ECOS·퀀트·섹터 ETF·install-only)
+**마지막 커밋**: (이번 작업 커밋 후 해시로 갱신)
 
 ---
 
@@ -45,21 +45,21 @@
 - 발급: [console.anthropic.com](https://console.anthropic.com) → API Keys → Create Key
 - `.env` 설정: `ANTHROPIC_API_KEY=sk-ant-...`
 - 과금: 종목 1개 분석당 약 $0.01~0.03 (Claude Sonnet 기준)
-- [ ] `.env.example` 에 발급 URL 주석으로 추가
+- [x] `.env.example` 에 발급 URL 주석으로 추가
 
 #### ② DART API 키 — **재무·리스크 지표의 핵심**
 - **없으면**: 부채비율·FCF·Altman Z·영업이익률 추세 등 DART 기반 지표 → None 또는 근사값
 - **있으면**: 연결 재무제표 실데이터로 정밀 계산
 - 발급: [dart.fss.or.kr](https://dart.fss.or.kr) → 인증키 신청 → 이메일 즉시 발급 (무료)
 - `.env` 설정: `DART_API_KEY=...`
-- [ ] `.env.example` 에 발급 URL 주석으로 추가
+- [x] `.env.example` 에 발급 URL 주석으로 추가
 
 #### ③ 한국은행 ECOS API 키 — **거시경제 지표** (선택)
 - **없으면**: 환율 데이터만 제한적으로 조회, 금리·CPI·PMI 지표 누락
 - **있으면**: 기준금리·CPI·PMI 등 ECOS 지표 연동 가능
 - 발급: [ecos.bok.or.kr](https://ecos.bok.or.kr) → Open API → 인증키 신청 (무료)
 - `.env` 설정: `ECOS_API_KEY=...`
-- [ ] `.env.example` 에 발급 URL 주석으로 추가
+- [x] `.env.example` 에 발급 URL 주석으로 추가
 
 #### API 키 세팅 우선순위
 ```
@@ -72,7 +72,8 @@
 - [x] finance_data.py — FinanceDataReader 연동 (주가, ETF)
 - [x] krx_data.py — pykrx 연동 (거래량, 시총, 외국인/기관 매매)
 - [x] dart_data.py — DART API 연동 (공시, 재무제표)
-- [x] bok_data.py — 한국은행 API 연동 (금리, 환율, CPI, PMI)
+- [x] bok_data.py — 한국은행 ECOS 연동 (금리, 환율, CPI, PMI)
+- [x] us_macro_data.py — 미국 DXY·단기금리(^IRX) yfinance 프록시
 - [x] cache.py — 데이터 캐싱 로직 (중복 API 호출 방지)
 
 ### 1-3. 에이전트 공통 기반 (backend/agents/)
@@ -108,13 +109,13 @@
 #### 거시경제 분석가 (macro_agent.py)
 담당 지표:
 - [x] 기준금리 동향 (한국은행 ECOS)
-- [ ] 기준금리 동향 (Fed — 미연동)
+- [x] 기준금리·달러 분위기 (미국 ^IRX·DXY, `yfinance` 프록시 — 연준 Fed Funds 별도 아님)
 - [x] CPI/인플레이션 — ECOS 전년동월비 흐름
 - [x] PMI — ECOS 제조업 PMI(통계표 코드는 현장 검증 권장)
 - [x] 환율 (원/달러, ECOS)
-- [ ] 환율 (DXY — 미연동)
+- [x] 환율 (달러인덱스 DXY, yfinance)
 - [x] 국제 정세/지정학 리스크 — Claude commentary
-- [ ] 섹터별 금리 민감도 분석
+- [x] 섹터별 금리 민감도 분석 (업종 Dept·한국 기준금리 추세 휴리스틱)
 
 #### 기술적 분석가 (technical_agent.py)
 담당 지표:
@@ -140,8 +141,8 @@
 - [x] 섹터 모멘텀 — 종목 60일 수익 vs 코스피
 - [x] ETF 자금흐름 — 업종 대표 ETF 외국인·기관 순매수·거래량 (`sector_etf_flow`)
 - [ ] 어닝 리비전 방향성 — 섹터 선행 신호
-- [ ] 경쟁사 대비 상대강도
-- [ ] 업종 평균 PER/PBR 비교
+- [x] 경쟁사 대비 상대강도 — 코스피·대표 업종 ETF 60일, 동종 PER/PBR 중앙값 대비
+- [x] 업종 동종 PER/PBR 중앙값 대비 (`peer_valuation` 연동)
 
 #### 퀀트 전략가 (quant_agent.py)
 담당 지표:
@@ -155,7 +156,7 @@
 #### 포트폴리오 조언자 (advisor_agent.py)
 담당 역할:
 - [x] 현재 보유 종목 전체 리스크 진단 (HHI·가중 변동성·최대 비중·유효 종목 수 근사)
-- [ ] 섹터 쏠림 경고
+- [x] 섹터 쏠림 경고 (상장 Dept 기준 가중 HHI)
 - [x] 종목별 비중 조절 제안 (동일가중 제안 + 과집중 페널티)
 - [ ] 매수/매도/홀딩 우선순위 조언
 - [ ] 시장 국면별 방어 전략 제시
